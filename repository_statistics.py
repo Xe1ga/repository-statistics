@@ -8,6 +8,7 @@ from datetime import datetime
 
 ACCEPT = "application/vnd.github.v3+json"
 URL_BASE = "https://api.github.com"
+PER_PAGE = 100
 
 
 class Params(NamedTuple):
@@ -21,7 +22,6 @@ class Params(NamedTuple):
 class Config(NamedTuple):
     """Параметры конфигурационного файла"""
     api_key: str
-    cmd_input: bool
 
 
 class DevActivity(NamedTuple):
@@ -31,19 +31,56 @@ class DevActivity(NamedTuple):
 
 
 class PullRequests(NamedTuple):
-    """Статистика разработчиков по количеству коммитов"""
+    """Статистика pull requests"""
     open_pull_requests: int
     closed_pull_requests: int
     old_pull_requests: int
 
-    def __str__(self):
-        return "Number of open pull requests = {}.\n" \
-               "Number of closed pull requests = {}.\n" \
-               "Number of old pull requests = {}.\n".format(
-                   str(self.open_pull_requests),
-                   str(self.closed_pull_requests),
-                   str(self.old_pull_requests)
-               )
+
+class Issues(NamedTuple):
+    """Статистика issues"""
+    open_issues: int
+    closed_issues: int
+    old_issues: int
+
+
+class ResponseData(NamedTuple):
+    """Структура хранит десериализованный объект ответа и нужные для скрипта данные заголовка ответа"""
+    result_page: list
+    header_link: str
+    header_content_length: int
+
+
+def get_part_url(url: str) -> str:
+    """
+    Получает часть url по типу {логин}/{имя репозитория} из полного url
+    :param url:
+    :return:
+    """
+    return "/".join(url.split("/")[-2:])
+
+
+def get_url(part_url: str, git_obj: str) -> str:
+    """
+    Получает url для запроса по коммитам
+    :param part_url:
+    :return:
+    """
+    if git_obj == "commits":
+        return URL_BASE + "/repos/" + part_url + "/commits"
+    elif git_obj == "pulls":
+        return URL_BASE + "/repos/" + part_url + "/pulls"
+    elif git_obj == "issues":
+        return URL_BASE + "/repos/" + part_url + "/issues"
+
+
+def get_headers(api_key: str) -> dict:
+    """
+    Формирует заголовок запроса
+    :param api_key:
+    :return:
+    """
+    return {'Accept': ACCEPT, 'Authorization': "Token {}".format(api_key)}
 
 
 def get_conf() -> Config:
@@ -52,8 +89,7 @@ def get_conf() -> Config:
         config = configparser.RawConfigParser()
         config.read("config.ini")
         api_key = config.get("Parameters", "API_KEY")
-        cmd_input = config.get("Parameters", "CMD_INPUT")
-        result = Config(api_key, cmd_input)
+        result = Config(api_key)
         return result
 
     except Exception:
@@ -61,38 +97,12 @@ def get_conf() -> Config:
         return None
 
 
-def get_params(cmd_input: bool = True) -> Params:
+def get_params() -> Params:
     """
-    Получает параметры из источника в зависимости от cmd_input
-    :param cmd_input:
+    Получает входные параметры
     :return: типизированный именованный кортеж с параметрами отчета
     """
     pass
-
-
-def get_limit_data(api_key: str) -> LimitData:
-    """
-    Получить статус ограничения скорости для аутентифицированного пользователя
-    :param api_key:
-    :return: именованный кортеж с именами полей limit, remaining, reset
-    """
-    LimitData = namedtuple("LimitData", "limit remaining reset")
-    full_url = URL_BASE + "/rate_limit"
-    headers = {'Accept': ACCEPT, 'Authorization': "Token {}".format(api_key)}
-    # получаем количество страниц ответа
-    response_data = get_response_data(full_url, headers)
-    print("Core limit = " + str(response_data.result_page.get("resources").get("core").get("limit"))
-          + "(remaining = " + str(response_data.result_page.get("resources").get("core").get("remaining"))
-          + ")." + "\n"
-          + "Reset: "
-          + str(datetime.fromtimestamp(response_data.result_page.get("resources").get("core").get("reset"))))
-    if response_data.result_page:
-        result = LimitData(response_data.result_page.get("resources").get("core").get("limit"),
-                           response_data.result_page.get("resources").get("core").get("remaining"),
-                           response_data.result_page.get("resources").get("core").get("reset"))
-    else:
-        result = None
-    return result
 
 
 def get_response_data(full_url: str, headers: dict) -> ResponseData:
@@ -102,10 +112,9 @@ def get_response_data(full_url: str, headers: dict) -> ResponseData:
     :param headers:
     :return: именованный кортеж с именами полей result_page, header_link, header_content_length
     """
-    # LimitData = namedtuple("LimitData", "result_page header_link header_content_length")
     pass
 
 
 if __name__ == "__main__":
     conf = get_conf()
-    params = get_params(conf.cmd_input)
+    params = get_params()
