@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import configparser
+from collections import namedtuple
 from typing import NamedTuple
 from datetime import datetime
+
+
+ACCEPT = "application/vnd.github.v3+json"
+URL_BASE = "https://api.github.com"
 
 
 class Params(NamedTuple):
@@ -21,8 +26,8 @@ class Config(NamedTuple):
 
 class DevActivity(NamedTuple):
     """Статистика разработчиков по количеству коммитов"""
-    api_key: str
-    cmd_input: bool
+    login: str
+    number_of_commits: int
 
 
 def get_conf() -> Config:
@@ -49,6 +54,43 @@ def get_params(cmd_input: bool = True) -> Params:
     pass
 
 
+def get_limit_data(api_key: str) -> LimitData:
+    """
+    Получить статус ограничения скорости для аутентифицированного пользователя
+    :param api_key:
+    :return: именованный кортеж с именами полей limit, remaining, reset
+    """
+    LimitData = namedtuple("LimitData", "limit remaining reset")
+    full_url = URL_BASE + "/rate_limit"
+    headers = {'Accept': ACCEPT, 'Authorization': "Token {}".format(api_key)}
+    # получаем количество страниц ответа
+    response_data = get_response_data(full_url, headers)
+    print("Core limit = " + str(response_data.result_page.get("resources").get("core").get("limit"))
+          + "(remaining = " + str(response_data.result_page.get("resources").get("core").get("remaining"))
+          + ")." + "\n"
+          + "Reset: "
+          + str(datetime.fromtimestamp(response_data.result_page.get("resources").get("core").get("reset"))))
+    if response_data.result_page:
+        result = LimitData(response_data.result_page.get("resources").get("core").get("limit"),
+                            response_data.result_page.get("resources").get("core").get("remaining"),
+                            response_data.result_page.get("resources").get("core").get("reset"))
+    else:
+        result = None
+    return result
+
+
+def get_response_data(full_url: str, headers: dict) -> ResponseData:
+    """
+    Получить ответ на запрос с заголовками
+    :param full_url:
+    :param headers:
+    :return: именованный кортеж с именами полей result_page, header_link, header_content_length
+    """
+    # LimitData = namedtuple("LimitData", "result_page header_link header_content_length")
+    pass
+
+
 if __name__ == "__main__":
     conf = get_conf()
     params = get_params(conf.cmd_input)
+
