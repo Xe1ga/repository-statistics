@@ -51,6 +51,18 @@ class ResponseData(NamedTuple):
     header_content_length: int
 
 
+def get_url_parameters(params: Params, git_obj: str, state: bool, old: bool) -> dict:
+    """
+    Формирует словарь параметров url
+    :param params:
+    :param git_obj: "commits" или "pulls" или "issues"
+    :param state: статус True - открыто, False - закрыто
+    :param old: True - "старый" pull request или issue, False - "свежий"
+    :return:
+    """
+    pass
+
+
 def get_part_url(url: str) -> str:
     """
     Получает часть url по типу {логин}/{имя репозитория} из полного url
@@ -64,6 +76,7 @@ def get_url(part_url: str, git_obj: str) -> str:
     """
     Получает url для запроса по коммитам
     :param part_url:
+    :param git_obj: "commits" или "pulls" или "issues"
     :return:
     """
     if git_obj == "commits":
