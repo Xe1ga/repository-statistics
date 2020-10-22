@@ -30,6 +30,22 @@ class DevActivity(NamedTuple):
     number_of_commits: int
 
 
+class PullRequests(NamedTuple):
+    """Статистика разработчиков по количеству коммитов"""
+    open_pull_requests: int
+    closed_pull_requests: int
+    old_pull_requests: int
+
+    def __str__(self):
+        return "Number of open pull requests = {}.\n" \
+               "Number of closed pull requests = {}.\n" \
+               "Number of old pull requests = {}.\n".format(
+                   str(self.open_pull_requests),
+                   str(self.closed_pull_requests),
+                   str(self.old_pull_requests)
+               )
+
+
 def get_conf() -> Config:
     """Получает данные из файла конфигурации"""
     try:
@@ -49,7 +65,7 @@ def get_params(cmd_input: bool = True) -> Params:
     """
     Получает параметры из источника в зависимости от cmd_input
     :param cmd_input:
-    :return:
+    :return: типизированный именованный кортеж с параметрами отчета
     """
     pass
 
@@ -72,8 +88,8 @@ def get_limit_data(api_key: str) -> LimitData:
           + str(datetime.fromtimestamp(response_data.result_page.get("resources").get("core").get("reset"))))
     if response_data.result_page:
         result = LimitData(response_data.result_page.get("resources").get("core").get("limit"),
-                            response_data.result_page.get("resources").get("core").get("remaining"),
-                            response_data.result_page.get("resources").get("core").get("reset"))
+                           response_data.result_page.get("resources").get("core").get("remaining"),
+                           response_data.result_page.get("resources").get("core").get("reset"))
     else:
         result = None
     return result
@@ -93,4 +109,3 @@ def get_response_data(full_url: str, headers: dict) -> ResponseData:
 if __name__ == "__main__":
     conf = get_conf()
     params = get_params(conf.cmd_input)
-
