@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import click
 from typing import NamedTuple
 from datetime import datetime
 
@@ -38,6 +39,13 @@ class Issues(NamedTuple):
     old_issues: int
 
 
+class ResultData(NamedTuple):
+    """Результирующий набор данных"""
+    dev_activity: DevActivity
+    pull_requests: PullRequests
+    issues: Issues
+
+
 class ResponseData(NamedTuple):
     """Структура хранит десериализованный объект ответа и заголовки"""
     result_page: list
@@ -51,7 +59,8 @@ class ValidationResult(NamedTuple):
     result: bool
     message: str
 
-
+# @click.command()
+# @click.argument('url')
 def get_params() -> Params:
     """
     Получает входные параметры
@@ -200,7 +209,19 @@ def get_issues(params: Params) -> Issues:
     pass
 
 
-def output_data(dev_activity: DevActivity, pull_requests: PullRequests, issues: Issues):
+def get_result_data(params: Params) -> ResultData:
+    """
+    Получает результирующий набор данных, запуск функций поиска осуществляется опционально
+    :param params:
+    :return:
+    """
+    pass
+    # dev_activity = get_dev_activity(params)
+    # pull_requests = get_pull_requests(params)
+    # issues = get_issues(params)
+
+
+def output_data(result_data: ResultData):
     """
     Вывод результатов работы скрипта
     :param dev_activity:
@@ -213,7 +234,5 @@ def output_data(dev_activity: DevActivity, pull_requests: PullRequests, issues: 
 
 if __name__ == "__main__":
     params = get_params()
-    dev_activity = get_dev_activity(params)
-    pull_requests = get_pull_requests(params)
-    issues = get_issues(params)
-    output_data(dev_activity, pull_requests, issues)
+    result_data = get_result_data(params)
+    output_data(result_data)
