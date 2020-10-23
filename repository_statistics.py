@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import configparser
-from collections import namedtuple
 from typing import NamedTuple
 from datetime import datetime
 
@@ -41,10 +39,17 @@ class Issues(NamedTuple):
 
 
 class ResponseData(NamedTuple):
-    """Структура хранит десериализованный объект ответа и нужные для скрипта данные заголовка ответа"""
+    """Структура хранит десериализованный объект ответа и заголовки"""
     result_page: list
     header_link: str
     header_content_length: int
+
+
+class ValidationResult(NamedTuple):
+    """Объект результата валидации параметра"""
+    validation_object: object
+    result: bool
+    message: str
 
 
 def get_params() -> Params:
@@ -55,36 +60,40 @@ def get_params() -> Params:
     pass
 
 
-def validation_url(url: str) -> bool:
+def validation_url(url: str) -> ValidationResult:
     """
-    Валилация параметра url
+    Валидация параметра url
     :param url:
     :return:
     """
+    pass
 
 
-def validation_begin_date(begin_date: str) -> bool:
+def validation_begin_date(begin_date: str) -> ValidationResult:
     """
-    Валилация параметра даты начала отчета
+    Валидация параметра даты конца отчета
     :param begin_date:
     :return:
     """
+    pass
 
 
-def validation_end_date(end_date: str) -> bool:
+def validation_end_date(end_date: str) -> ValidationResult:
     """
-    Валилация параметра даты конца отчета
+    Валидация параметра даты конца отчета
     :param end_date:
     :return:
     """
+    pass
 
 
-def validation_branch(branch: str) -> bool:
+def validation_branch(branch: str) -> ValidationResult:
     """
     Валидация наименования ветки
     :param branch:
     :return:
     """
+    pass
 
 
 def get_part_url(url: str) -> str:
@@ -144,6 +153,16 @@ def get_headers(api_key: str) -> dict:
     return {'Accept': ACCEPT, 'Authorization': "Token {}".format(api_key)}
 
 
+def get_num_of_pages(url: str, headers: dict) -> int:
+    """
+    Получает число страниц ответа для пагинации
+    :param url:
+    :param headers:
+    :return:
+    """
+    pass
+
+
 def get_response_data(full_url: str, headers: dict) -> ResponseData:
     """
     Получить ответ на запрос с заголовками
@@ -154,6 +173,47 @@ def get_response_data(full_url: str, headers: dict) -> ResponseData:
     pass
 
 
+def get_dev_activity(params: Params) -> DevActivity:
+    """
+    Получить статистику разработчиков по количеству коммитов
+    :param params:
+    :return:
+    """
+    pass
+
+
+def get_pull_requests(params: Params) -> PullRequests:
+    """
+    Получить статистику pull requests
+    :param params:
+    :return:
+    """
+    pass
+
+
+def get_issues(params: Params) -> Issues:
+    """
+    Получить статистику issues
+    :param params:
+    :return:
+    """
+    pass
+
+
+def output_data(dev_activity: DevActivity, pull_requests: PullRequests, issues: Issues):
+    """
+    Вывод результатов работы скрипта
+    :param dev_activity:
+    :param pull_requests:
+    :param issues:
+    :return:
+    """
+    pass
+
+
 if __name__ == "__main__":
-    conf = get_conf()
     params = get_params()
+    dev_activity = get_dev_activity(params)
+    pull_requests = get_pull_requests(params)
+    issues = get_issues(params)
+    output_data(dev_activity, pull_requests, issues)
