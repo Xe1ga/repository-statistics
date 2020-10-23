@@ -51,16 +51,52 @@ class ResponseData(NamedTuple):
     header_content_length: int
 
 
-def get_url_parameters(params: Params, git_obj: str, state: bool, old: bool) -> dict:
+def get_params() -> Params:
     """
-    Формирует словарь параметров url
-    :param params:
-    :param git_obj: "commits" или "pulls" или "issues"
-    :param state: статус True - открыто, False - закрыто
-    :param old: True - "старый" pull request или issue, False - "свежий"
-    :return:
+    Получает входные параметры
+    :return: типизированный именованный кортеж с параметрами отчета
     """
     pass
+
+
+def input(url) -> Params:
+    """
+    Получает входные параметры
+    :return: типизированный именованный кортеж с параметрами отчета
+    """
+    pass
+
+
+def validation_url(url: str) -> bool:
+    """
+    Валилация параметра url
+    :param url:
+    :return:
+    """
+
+
+def validation_begin_date(begin_date: str) -> bool:
+    """
+    Валилация параметра даты начала отчета
+    :param begin_date:
+    :return:
+    """
+
+
+def validation_end_date(end_date: str) -> bool:
+    """
+    Валилация параметра даты конца отчета
+    :param end_date:
+    :return:
+    """
+
+
+def validation_branch(branch: str) -> bool:
+    """
+    Валидация наименования ветки
+    :param branch:
+    :return:
+    """
 
 
 def get_part_url(url: str) -> str:
@@ -74,7 +110,7 @@ def get_part_url(url: str) -> str:
 
 def get_url(part_url: str, git_obj: str) -> str:
     """
-    Получает url для запроса по коммитам
+    Получает первую часть url (без параметров) для запроса по коммитам
     :param part_url:
     :param git_obj: "commits" или "pulls" или "issues"
     :return:
@@ -85,6 +121,30 @@ def get_url(part_url: str, git_obj: str) -> str:
         return URL_BASE + "/repos/" + part_url + "/pulls"
     elif git_obj == "issues":
         return URL_BASE + "/repos/" + part_url + "/issues"
+
+
+def get_url_parameters(params: Params, git_obj: str, state: bool, old: bool) -> dict:
+    """
+    Формирует словарь параметров url
+    :param params:
+    :param git_obj: "commits" или "pulls" или "issues"
+    :param state: статус True - открыто, False - закрыто
+    :param old: True - "старый" pull request или issue, False - "свежий"
+    :return:
+    """
+    pass
+
+
+def get_url_with_params(params: Params, git_obj: str, state: bool, old: bool) -> str:
+    """
+    Получение полного url с параметрами
+    :param params:
+    :param git_obj:
+    :param state:
+    :param old:
+    :return: строка, содержит полный url запроса
+    """
+    pass
 
 
 def get_headers(api_key: str) -> dict:
@@ -108,14 +168,6 @@ def get_conf() -> Config:
     except Exception:
         print("Problem loading data from config.ini file.")
         return None
-
-
-def get_params() -> Params:
-    """
-    Получает входные параметры
-    :return: типизированный именованный кортеж с параметрами отчета
-    """
-    pass
 
 
 def get_response_data(full_url: str, headers: dict) -> ResponseData:
