@@ -53,12 +53,6 @@ class ResponseData(NamedTuple):
     header_content_length: int
 
 
-class ValidationResult(NamedTuple):
-    """Объект результата валидации параметра"""
-    validation_object: object
-    result: bool
-    message: str
-
 # @click.command()
 # @click.argument('url')
 def get_params() -> Params:
@@ -69,7 +63,15 @@ def get_params() -> Params:
     pass
 
 
-def validation_url(url: str) -> ValidationResult:
+def is_valid_params(params: Params) -> bool:
+    """
+    Валидация параметров
+    :param params:
+    :return:
+    """
+
+
+def is_url(url: str) -> bool:
     """
     Валидация параметра url
     :param url:
@@ -78,25 +80,16 @@ def validation_url(url: str) -> ValidationResult:
     pass
 
 
-def validation_begin_date(begin_date: str) -> ValidationResult:
+def is_date(begin_date: str) -> bool:
     """
-    Валидация параметра даты конца отчета
+    Валидация параметра даты
     :param begin_date:
     :return:
     """
     pass
 
 
-def validation_end_date(end_date: str) -> ValidationResult:
-    """
-    Валидация параметра даты конца отчета
-    :param end_date:
-    :return:
-    """
-    pass
-
-
-def validation_branch(branch: str) -> ValidationResult:
+def is_branch(branch: str) -> bool:
     """
     Валидация наименования ветки
     :param branch:
@@ -184,8 +177,18 @@ def get_response_data(full_url: str, headers: dict) -> ResponseData:
 
 def get_dev_activity(params: Params) -> DevActivity:
     """
-    Получить статистику разработчиков по количеству коммитов
+    Формирует запрос на получение данных и отправляет их на парсинг.
+    Получает статистику разработчиков по количеству коммитов.
     :param params:
+    :return:
+    """
+    pass
+
+
+def parse_dev_activity_from_github_page(commit_list: list) -> DevActivity:
+    """
+    Парсинг данных о статистике коммитов со страницы GitHub.
+    :param commit_list:
     :return:
     """
     pass
@@ -193,8 +196,18 @@ def get_dev_activity(params: Params) -> DevActivity:
 
 def get_pull_requests(params: Params) -> PullRequests:
     """
-    Получить статистику pull requests
+    Формирует запрос на получение данных и отправляет их на парсинг.
+    Получает статистику pull requests.
     :param params:
+    :return:
+    """
+    pass
+
+
+def parse_pull_requests_from_github_page(pull_requests_list: list) -> PullRequests:
+    """
+    Парсинг данных о статистике pull requests со страницы GitHub.
+    :param pull_requests_list:
     :return:
     """
     pass
@@ -202,8 +215,18 @@ def get_pull_requests(params: Params) -> PullRequests:
 
 def get_issues(params: Params) -> Issues:
     """
-    Получить статистику issues
+    Формирует запрос на получение данных и отправляет их на парсинг.
+    Получает статистику issues.
     :param params:
+    :return:
+    """
+    pass
+
+
+def parse_issues_from_github_page(issues_list: list) -> Issues:
+    """
+    Парсинг данных о статистике issues со страницы GitHub.
+    :param issues_list:
     :return:
     """
     pass
@@ -211,7 +234,8 @@ def get_issues(params: Params) -> Issues:
 
 def get_result_data(params: Params) -> ResultData:
     """
-    Получает результирующий набор данных, запуск функций поиска осуществляется опционально
+    Получает результирующий набор данных.
+    Запуск функций поиска осуществляется опционально.
     :param params:
     :return:
     """
@@ -223,10 +247,8 @@ def get_result_data(params: Params) -> ResultData:
 
 def output_data(result_data: ResultData):
     """
-    Вывод результатов работы скрипта
-    :param dev_activity:
-    :param pull_requests:
-    :param issues:
+    Вывод результатов работы скрипта.
+    :param result_data:
     :return:
     """
     pass
@@ -234,5 +256,7 @@ def output_data(result_data: ResultData):
 
 if __name__ == "__main__":
     params = get_params()
-    result_data = get_result_data(params)
-    output_data(result_data)
+    result_data = None
+    if is_valid_params(params):
+        result_data = get_result_data(params)
+        output_data(result_data)
