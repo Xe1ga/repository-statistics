@@ -14,14 +14,10 @@ PER_PAGE = 100
 class Params(NamedTuple):
     """Параметры отчета"""
     url: str
+    api_key: str
     begin_date: datetime
     end_date: datetime
     branch: str
-
-
-class Config(NamedTuple):
-    """Параметры конфигурационного файла"""
-    api_key: str
 
 
 class DevActivity(NamedTuple):
@@ -52,14 +48,6 @@ class ResponseData(NamedTuple):
 
 
 def get_params() -> Params:
-    """
-    Получает входные параметры
-    :return: типизированный именованный кортеж с параметрами отчета
-    """
-    pass
-
-
-def input(url) -> Params:
     """
     Получает входные параметры
     :return: типизированный именованный кортеж с параметрами отчета
@@ -154,20 +142,6 @@ def get_headers(api_key: str) -> dict:
     :return:
     """
     return {'Accept': ACCEPT, 'Authorization': "Token {}".format(api_key)}
-
-
-def get_conf() -> Config:
-    """Получает данные из файла конфигурации"""
-    try:
-        config = configparser.RawConfigParser()
-        config.read("config.ini")
-        api_key = config.get("Parameters", "API_KEY")
-        result = Config(api_key)
-        return result
-
-    except Exception:
-        print("Problem loading data from config.ini file.")
-        return None
 
 
 def get_response_data(full_url: str, headers: dict) -> ResponseData:
