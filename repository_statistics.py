@@ -98,50 +98,70 @@ def is_branch(branch: str) -> bool:
     pass
 
 
-def get_part_url(url: str) -> str:
+def get_last_parts_url(url: str, num_parts: int) -> str:
     """
-    Получает часть url по типу {логин}/{имя репозитория} из полного url
-    :param url:
+    Получает с конца из строки часть url ресурса в зависимости от параметра num_parts.
+    :param url: url ресурса
+    :param num_parts: количество частей в пространстве имен, которое будет извлечено
     :return:
     """
-    return "/".join(url.split("/")[-2:])
+    return "/".join(url.split("/")[-num_parts:])
 
 
-def get_url(part_url: str, git_obj: str) -> str:
+def get_dict_url_parameters_for_commits_github(params: Params) -> dict:
     """
-    Получает первую часть url (без параметров) для запроса по коммитам
-    :param part_url:
-    :param git_obj: "commits" или "pulls" или "issues"
-    :return:
-    """
-    if git_obj == "commits":
-        return URL_BASE + "/repos/" + part_url + "/commits"
-    elif git_obj == "pulls":
-        return URL_BASE + "/repos/" + part_url + "/pulls"
-    elif git_obj == "issues":
-        return URL_BASE + "/repos/" + part_url + "/issues"
-
-
-def get_url_parameters(params: Params, git_obj: str, state: bool, old: bool) -> dict:
-    """
-    Формирует словарь параметров url
+    Получить словарь параметров для формирования endpoint запроса по коммитам
     :param params:
-    :param git_obj: "commits" или "pulls" или "issues"
-    :param state: статус True - открыто, False - закрыто
-    :param old: True - "старый" pull request или issue, False - "свежий"
+    :return:
+    """
+
+def get_endpoint_url_for_commits_github(url: str, url_params: dict) -> str:
+    """
+    Формирует url для отправки запроса на получение данных по коммитам
+    :param url:
+    :param url_params:
     :return:
     """
     pass
 
 
-def get_url_with_params(params: Params, git_obj: str, state: bool, old: bool) -> str:
+def get_dict_url_parameters_for_pull_requests_github(params: Params, is_open: bool, is_old: bool) -> dict:
     """
-    Получение полного url с параметрами
+    Получить словарь параметров для формирования endpoint запроса по pull requests
     :param params:
-    :param git_obj:
-    :param state:
-    :param old:
-    :return: строка, содержит полный url запроса
+    :param is_open:
+    :param is_old:
+    :return:
+    """
+    pass
+
+
+def get_endpoint_url_for_pull_requests_github(url: str, url_params: dict) -> str:
+    """
+    Формирует url для отправки запроса на получение данных по pull requests
+    :param url:
+    :param url_params:
+    :return:
+    """
+    pass
+
+def get_dict_url_parameters_for_issues_github(params: Params, is_open: bool, is_old: bool) -> dict:
+    """
+    Получить словарь параметров для формирования endpoint запроса по issues
+    :param params:
+    :param is_open:
+    :param is_old:
+    :return:
+    """
+    pass
+
+
+def get_endpoint_url_for_pull_issues_github(url: str, url_params: dict) -> str:
+    """
+    Формирует url для отправки запроса на получение данных по issues
+    :param url:
+    :param url_params:
+    :return:
     """
     pass
 
