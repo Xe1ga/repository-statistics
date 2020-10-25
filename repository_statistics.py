@@ -69,6 +69,7 @@ def is_valid_params(params: Params) -> bool:
     :param params:
     :return:
     """
+    pass
 
 
 def is_url(url: str) -> bool:
@@ -114,6 +115,7 @@ def get_dict_url_parameters_for_commits_github(params: Params) -> dict:
     :param params:
     :return:
     """
+    pass
 
 def get_endpoint_url_for_commits_github(url: str, url_params: dict) -> str:
     """
@@ -276,7 +278,7 @@ def output_data(result_data: ResultData):
 
 if __name__ == "__main__":
     params = get_params()
-    result_data = None
-    if is_valid_params(params):
-        result_data = get_result_data(params)
-        output_data(result_data)
+    if not is_valid_params(params):
+        print("Invalid input parameters")
+    result_data = get_result_data(params)
+    output_data(result_data)
