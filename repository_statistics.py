@@ -10,9 +10,6 @@ URL_BASE = "https://api.github.com"
 PER_PAGE = 100
 
 
-GeneralDevActivity = list(ActivityOneDev)
-
-
 class Params(NamedTuple):
     """Параметры отчета"""
     url: str
@@ -22,7 +19,7 @@ class Params(NamedTuple):
     branch: str = "master"
 
 
-class ActivityOneDev(NamedTuple):
+class DevActivity(NamedTuple):
     """Статистика одного разработчика по количеству коммитов"""
     login: str
     number_of_commits: int
@@ -44,7 +41,7 @@ class Issues(NamedTuple):
 
 class ResultData(NamedTuple):
     """Результирующий набор данных"""
-    dev_activity: GeneralDevActivity
+    dev_activity: list
     pull_requests: PullRequests
     issues: Issues
 
@@ -204,7 +201,7 @@ def get_response_data(full_url: str, headers: dict) -> ResponseData:
     pass
 
 
-def get_dev_activity(params: Params) -> GeneralDevActivity :
+def get_dev_activity(params: Params) -> DevActivity:
     """
     Формирует запрос на получение данных и отправляет их на парсинг.
     Получает статистику разработчиков по количеству коммитов.
@@ -214,7 +211,7 @@ def get_dev_activity(params: Params) -> GeneralDevActivity :
     pass
 
 
-def parse_dev_activity_from_github_page(commit_list: list) -> GeneralDevActivity :
+def parse_dev_activity_from_github_page(commit_list: list) -> DevActivity:
     """
     Парсинг данных о статистике коммитов со страницы GitHub.
     :param commit_list:
