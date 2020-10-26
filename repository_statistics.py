@@ -53,20 +53,11 @@ class ResponseData(NamedTuple):
     header_content_length: int
 
 
-# @click.command()
-# @click.argument('url')
-def get_params() -> Params:
+def get_valid_params(func: object) -> Params:
     """
-    Получает входные параметры
-    :return: типизированный именованный кортеж с параметрами отчета
-    """
-    pass
-
-
-def is_valid_params(params: Params) -> bool:
-    """
-    Валидация параметров
-    :param params:
+    Декоратор валидации параметров.
+    Возвращает параметры или бросает исклюсение на некорректном параметре.
+    :param func:
     :return:
     """
     pass
@@ -95,6 +86,15 @@ def is_branch(branch: str) -> bool:
     Валидация наименования ветки
     :param branch:
     :return:
+    """
+    pass
+
+
+@get_valid_params
+def get_params() -> Params:
+    """
+    Получает входные параметры
+    :return: типизированный именованный кортеж с параметрами отчета
     """
     pass
 
@@ -276,9 +276,16 @@ def output_data(result_data: ResultData):
     pass
 
 
-if __name__ == "__main__":
-    params = get_params()
-    if not is_valid_params(params):
-        print("Invalid input parameters")
+@click.command()
+@click.argument('url')
+@click.argument('begin_date')
+@click.argument('end_date')
+@click.argument('branch')
+def main(url, begin_date, end_date, branch):
+    params = get_params(url, begin_date, end_date, branch)
     result_data = get_result_data(params)
     output_data(result_data)
+
+
+if __name__ == "__main__":
+    main()
