@@ -41,7 +41,7 @@ class Issues(NamedTuple):
 
 class ResultData(NamedTuple):
     """Результирующий набор данных"""
-    dev_activity: list
+    dev_activity: list[DevActivity]
     pull_requests: PullRequests
     issues: Issues
 
