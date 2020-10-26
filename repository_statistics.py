@@ -16,7 +16,7 @@ class Params(NamedTuple):
     api_key: str
     begin_date: datetime
     end_date: datetime
-    branch: str
+    branch: str = "master"
 
 
 class DevActivity(NamedTuple):
@@ -53,6 +53,15 @@ class ResponseData(NamedTuple):
     header_content_length: int
 
 
+def get_date_from_str(date_str: str) -> datetime:
+    """
+    Конвертировать строку в дату.
+    :param date_str:
+    :return:
+    """
+    return datetime.strptime(date_str, "%d.%m.%Y")
+
+
 def get_valid_params(func: object) -> Params:
     """
     Декоратор валидации параметров.
@@ -72,15 +81,6 @@ def is_url(url: str) -> bool:
     pass
 
 
-def is_date(begin_date: str) -> bool:
-    """
-    Валидация параметра даты
-    :param begin_date:
-    :return:
-    """
-    pass
-
-
 def is_branch(branch: str) -> bool:
     """
     Валидация наименования ветки
@@ -91,10 +91,14 @@ def is_branch(branch: str) -> bool:
 
 
 @get_valid_params
-def get_params() -> Params:
+def get_params(url: str, begin_date: str, end_date: str, branch: str) -> Params:
     """
-    Получает входные параметры
-    :return: типизированный именованный кортеж с параметрами отчета
+    Формирует структуру для хранения параметров скрипта
+    :param url:
+    :param begin_date:
+    :param end_date:
+    :param branch:
+    :return:
     """
     pass
 
@@ -109,7 +113,7 @@ def get_last_parts_url(url: str, num_parts: int) -> str:
     return "/".join(url.split("/")[-num_parts:])
 
 
-def get_dict_url_parameters_for_commits_github(params: Params) -> dict:
+def get_url_parameters_for_commits_github(params: Params) -> dict:
     """
     Получить словарь параметров для формирования endpoint запроса по коммитам
     :param params:
@@ -127,7 +131,7 @@ def get_endpoint_url_for_commits_github(url: str, url_params: dict) -> str:
     pass
 
 
-def get_dict_url_parameters_for_pull_requests_github(params: Params, is_open: bool, is_old: bool) -> dict:
+def get_url_parameters_for_pull_requests_github(params: Params, is_open: bool, is_old: bool) -> dict:
     """
     Получить словарь параметров для формирования endpoint запроса по pull requests
     :param params:
@@ -147,7 +151,7 @@ def get_endpoint_url_for_pull_requests_github(url: str, url_params: dict) -> str
     """
     pass
 
-def get_dict_url_parameters_for_issues_github(params: Params, is_open: bool, is_old: bool) -> dict:
+def get_url_parameters_for_issues_github(params: Params, is_open: bool, is_old: bool) -> dict:
     """
     Получить словарь параметров для формирования endpoint запроса по issues
     :param params:
@@ -283,8 +287,9 @@ def output_data(result_data: ResultData):
 @click.argument('branch')
 def main(url, begin_date, end_date, branch):
     params = get_params(url, begin_date, end_date, branch)
-    result_data = get_result_data(params)
-    output_data(result_data)
+    print(params)
+    # result_data = get_result_data(params)
+    # output_data(result_data)
 
 
 if __name__ == "__main__":
