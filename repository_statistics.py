@@ -20,7 +20,7 @@ class Params(NamedTuple):
 
 
 class DevActivity(NamedTuple):
-    """Статистика разработчиков по количеству коммитов"""
+    """Статистика одного разработчика по количеству коммитов"""
     login: str
     number_of_commits: int
 
@@ -41,7 +41,7 @@ class Issues(NamedTuple):
 
 class ResultData(NamedTuple):
     """Результирующий набор данных"""
-    dev_activity: DevActivity
+    dev_activity: list
     pull_requests: PullRequests
     issues: Issues
 
@@ -287,9 +287,8 @@ def output_data(result_data: ResultData):
 @click.argument('branch')
 def main(url, begin_date, end_date, branch):
     params = get_params(url, begin_date, end_date, branch)
-    print(params)
-    # result_data = get_result_data(params)
-    # output_data(result_data)
+    result_data = get_result_data(params)
+    output_data(result_data)
 
 
 if __name__ == "__main__":
