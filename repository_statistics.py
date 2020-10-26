@@ -10,7 +10,7 @@ URL_BASE = "https://api.github.com"
 PER_PAGE = 100
 
 
-GeneralDevActivity = list(ActivityOneDev)
+GeneralDevActivity = list[ActivityOneDev]
 
 
 class Params(NamedTuple):
