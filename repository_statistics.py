@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import click
 from typing import NamedTuple
+from typing import Union
 from datetime import datetime
 
 
@@ -14,9 +15,12 @@ class Params(NamedTuple):
     """Параметры отчета"""
     url: str
     api_key: str
-    begin_date: datetime
-    end_date: datetime
-    branch: str = "master"
+    begin_date: Union[datetime, str, None]
+    end_date: Union[datetime, str, None]
+    branch: str
+    dev_activity: bool
+    pull_request: bool
+    issues: bool
 
 
 class DevActivity(NamedTuple):
@@ -62,23 +66,38 @@ def get_date_from_str(date_str: str) -> datetime:
     return datetime.strptime(date_str, "%d.%m.%Y")
 
 
-def get_valid_params(func: object) -> Params:
-    """
-    Декоратор валидации параметров.
-    Возвращает параметры или бросает исклюсение на некорректном параметре.
-    :param func:
-    :return:
-    """
-    pass
-
-
 def is_url(url: str) -> bool:
     """
     Валидация параметра url
     :param url:
     :return:
     """
-    pass
+    return True
+
+
+def is_api_key(api_key: str) -> bool:
+    """
+    Проверка корректности api_key
+    :param api_key:
+    :return:
+    """
+    return True
+
+
+def is_date(date: str) -> bool:
+    """
+    Валидация даты
+    :param date:
+    :return:
+    """
+    if date:
+        try:
+            begin_date = get_date_from_str(date)
+        except ValueError:
+            return False
+        return True
+    else:
+        return True
 
 
 def is_branch(branch: str) -> bool:
@@ -87,20 +106,71 @@ def is_branch(branch: str) -> bool:
     :param branch:
     :return:
     """
-    pass
+    return True
+
+
+def get_validation_error_message(params) -> str:
+    """
+    Формирует общее сообщение об ошибках валидации параметров.
+    :param parameters:
+    :return:
+    """
+    message = ""
+
+    if not is_url(params.url):
+        message += "Неккорректно задан параметр url или" \
+                   " репозитория с адресом {} не существует. ".format(params.url)
+    if not is_url(params.api_key):
+        message += "Авторизация не удалась. Вероятно, некорректный api_key.".format(params.api_key)
+    if not is_date(params.begin_date):
+        message += "Неккорректно задан параметр даты начала периода, {}. ".format(params.begin_date)
+    if not is_date(params.end_date):
+        message += "Неккорректно задан параметр даты конца периода, {}. ".format(params.end_date)
+    if not is_branch(params.branch):
+        message += "Ветки репозитория с указанным именем {} не существует. ".format(params.branch)
+
+    return message
+
+
+def get_valid_params(func: object) -> Params:
+    """
+    Декоратор валидации параметров.
+    Возвращает параметры или бросает исключение и выводит общее сообщение об ошибках валидации.
+    :param func:
+    :return:
+    """
+    def wrapper(params):
+        validation_error_message = get_validation_error_message(params)
+        if validation_error_message:
+            raise TypeError(validation_error_message)
+        else:
+            params = func(params)
+            return params
+
+    return wrapper
 
 
 @get_valid_params
-def get_params(url: str, begin_date: str, end_date: str, branch: str) -> Params:
+def get_params(params: Params) -> Params:
     """
     Формирует структуру для хранения параметров скрипта
     :param url:
+    :param api_key:
     :param begin_date:
     :param end_date:
     :param branch:
     :return:
     """
-    pass
+    return Params(
+        params.url,
+        params.api_key,
+        get_date_from_str(params.begin_date) if params.begin_date else None,
+        get_date_from_str(params.end_date) if params.end_date else None,
+        params.branch if params.branch else "master",
+        params.dev_activity,
+        params.pull_request,
+        params.issues
+    )
 
 
 def get_last_parts_url(url: str, num_parts: int) -> str:
@@ -281,14 +351,62 @@ def output_data(result_data: ResultData):
 
 
 @click.command()
-@click.argument('url')
-@click.argument('begin_date')
-@click.argument('end_date')
-@click.argument('branch')
-def main(url, begin_date, end_date, branch):
-    params = get_params(url, begin_date, end_date, branch)
-    result_data = get_result_data(params)
-    output_data(result_data)
+@click.argument('url', type=str)
+@click.argument('api_key', type=str)
+@click.option(
+    '--begin_date', '-b', type=str, default="",
+    help='analysis start date in format "dd.mm.YYYY"'
+)
+@click.option(
+    '--end_date', '-e', type=str, default="",
+    help='analysis end date in format "dd.mm.YYYY"'
+)
+@click.option(
+    '--branch', '-br', type=str, default="",
+    help='repository branch name'
+)
+@click.option(
+    '--dev_activity', '-da', is_flag=True,
+    help='analyze developer activity'
+)
+@click.option(
+    '--pull_requests', '-pr', is_flag=True,
+    help='analysis of the pull requests on a given branch of the repository'
+)
+@click.option(
+    '--issues', '-i', is_flag=True,
+    help='analysis of issues on a given branch of the repository'
+)
+def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests, issues):
+    """
+    Script for analyzing repository statistics according to the specified parameters.
+    If the start and end dates of the analysis are not specified, then an unlimited interval is taken to the left, right or completely.
+    If the repository branch is not specified, the master branch is taken by default.
+    The following events are optionally analyzed:
+
+        1. The activity of developers by the number of commits (--dev_activity).
+
+        2. Statistics of merge requests (--pull_requests).
+
+        3. Issues statistics (--issues).
+
+    If none of the options is specified, then the analysis will be carried out in all directions.
+    """
+    params = get_params(
+        params=Params(
+            url,
+            api_key,
+            begin_date,
+            end_date,
+            branch,
+            dev_activity,
+            pull_requests,
+            issues
+        )
+    )
+    print(params)
+    # result_data = get_result_data(params)
+    # output_data(result_data)
 
 
 if __name__ == "__main__":
