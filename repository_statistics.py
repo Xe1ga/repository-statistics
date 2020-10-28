@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import sys
+
 import click
+import requests
+
 from typing import NamedTuple
 from typing import Union
+from typing import Optional
 from datetime import datetime
+from json.decoder import JSONDecodeError
 
 
 ACCEPT = "application/vnd.github.v3+json"
@@ -19,7 +25,7 @@ class Params(NamedTuple):
     end_date: Union[datetime, str, None]
     branch: str
     dev_activity: bool
-    pull_request: bool
+    pull_requests: bool
     issues: bool
 
 
@@ -52,9 +58,22 @@ class ResultData(NamedTuple):
 
 class ResponseData(NamedTuple):
     """Структура хранит десериализованный объект ответа и заголовки"""
-    result_page: list
-    header_link: str
-    header_content_length: int
+    response_json: Optional[list]
+    link: Optional[str]
+    content_length: Optional[int]
+    rate_limit_remaining: Optional[int]
+    rate_limit_reset: Optional[datetime]
+    status_code: int
+
+
+def show_err_message_and_exit (message: str):
+    """
+    Процедура показывате сообщение об ошибке и выходит из программы
+    :param message:
+    :return:
+    """
+    print(message)
+    sys.exit(1)
 
 
 def get_date_from_str(date_str: str) -> datetime:
@@ -72,7 +91,10 @@ def is_url(url: str) -> bool:
     :param url:
     :return:
     """
-    return True
+    if get_response_data(url).status_code == 200:
+        return True
+    else:
+        return False
 
 
 def is_api_key(api_key: str) -> bool:
@@ -120,7 +142,7 @@ def get_validation_error_message(params) -> str:
     if not is_url(params.url):
         message += "Неккорректно задан параметр url или" \
                    " репозитория с адресом {} не существует. ".format(params.url)
-    if not is_url(params.api_key):
+    if not is_api_key(params.api_key):
         message += "Авторизация не удалась. Вероятно, некорректный api_key.".format(params.api_key)
     if not is_date(params.begin_date):
         message += "Неккорректно задан параметр даты начала периода, {}. ".format(params.begin_date)
@@ -168,7 +190,7 @@ def get_params(params: Params) -> Params:
         get_date_from_str(params.end_date) if params.end_date else None,
         params.branch if params.branch else "master",
         params.dev_activity,
-        params.pull_request,
+        params.pull_requests,
         params.issues
     )
 
@@ -261,14 +283,51 @@ def get_num_of_pages(url: str, headers: dict) -> int:
     pass
 
 
-def get_response_data(full_url: str, headers: dict) -> ResponseData:
+def get_response_data(url: str, parameters: dict={}, headers: dict={}) -> ResponseData:
     """
-    Получить ответ на запрос с заголовками
-    :param full_url:
+    Получить десериализованные данные ответа Response и часть необходимых заголовков
+    :param url:
     :param headers:
-    :return: именованный кортеж с именами полей result_page, header_link, header_content_length
+    :return:
     """
-    pass
+
+    try:
+        print(url)
+        print(parameters)
+        print(headers)
+        response = requests.get(url, params=parameters, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.exceptions.ConnectTimeout:
+        show_err_message_and_exit("Превышен таймаут установки соединения с сервером")
+    except requests.exceptions.ReadTimeout:
+        show_err_message_and_exit("Превышен таймаут ожидания ответа от сервера")
+    except requests.exceptions.ConnectionError:
+        show_err_message_and_exit("Проблема соединения с сервером")
+    except requests.exceptions.HTTPError as err:
+        show_err_message_and_exit("HTTP ошибка. Код ошибки = {}".format(response.status_code))
+    else:
+        print("Это объект response: \n ", response)
+        print("Это тип объекта response: \n ", type(response))
+        print("Это объект response.headers: \n ", response.headers)
+        print("Это тип объекта response.headers: \n ", type(response.headers))
+
+        try:
+            response_json = response.json()
+            print("Это объект response.json(): \n ", response.json())
+            print("Это тип объекта response.json(): \n ", type(response.json()))
+        except (ValueError, JSONDecodeError):
+            response_json = None
+
+        return ResponseData(
+            response_json,
+            response.headers.get('Link'),
+            response.headers.get('Content-Length'),
+            response.headers.get('X-RateLimit-Remaining'),
+            datetime.fromtimestamp(
+                response.headers.get('X-RateLimit-Reset')
+            ) if response.headers.get('X-RateLimit-Reset') else None,
+            response.status_code,
+        )
 
 
 def get_dev_activity(params: Params) -> DevActivity:
@@ -404,7 +463,7 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
             issues
         )
     )
-    print(params)
+
     # result_data = get_result_data(params)
     # output_data(result_data)
 
