@@ -466,6 +466,8 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
             )
     except TypeError as err:
         print("Проверьте правильность указания параметров скрипта: ", err)
+    except (TimeoutError, ConnectionError) as err:
+        print("Проверьте подключение к сети: ", err)
 
     # result_data = get_result_data(params)
     # output_data(result_data)
