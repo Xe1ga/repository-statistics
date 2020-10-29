@@ -7,7 +7,7 @@ from typing import NamedTuple, Optional
 from datetime import datetime
 from json.decoder import JSONDecodeError
 
-from exceptions import TimeoutError, ConnectionError, NotFoundError
+from exceptions import TimeoutError, ConnectionError, NotFoundError, ValidationError
 
 
 ACCEPT = "application/vnd.github.v3+json"
@@ -85,8 +85,7 @@ def is_url(url: str) -> bool:
     :return:
     """
     try:
-        response_data = get_response_data(url)
-        if response_data.status_code == 200:
+        if get_response_data(url).status_code == 200:
             return True
         else:
             return False
@@ -139,13 +138,11 @@ def get_validation_errors(**params) -> list:
     if not is_api_key(params["api_key"]):
         errors.append('Авторизация не удалась. Вероятно, некорректный api_key.')
 
-    if params["begin_date"]:
-        if not is_date(params["begin_date"]):
-            errors.append(f'Неккорректно задан параметр даты начала периода, {params["begin_date"]}.')
+    if params["begin_date"] and not is_date(params["begin_date"]):
+        errors.append(f'Неккорректно задан параметр даты начала периода, {params["begin_date"]}.')
 
-    if params["end_date"]:
-        if not is_date(params["end_date"]):
-            errors.append(f'Неккорректно задан параметр даты конца периода, {params["end_date"]}.')
+    if params["end_date"] and not is_date(params["end_date"]):
+        errors.append(f'Неккорректно задан параметр даты конца периода, {params["end_date"]}.')
 
     if not is_branch(params["branch"]):
         errors.append(f'Ветки репозитория с указанным именем {params["branch"]} не существует.')
@@ -163,7 +160,7 @@ def get_valid_params(func: object) -> Params:
     def wrapper(**params):
         validation_errors = get_validation_errors(**params)
         if validation_errors:
-            raise TypeError(validation_errors)
+            raise ValidationError(validation_errors)
         else:
             params = func(**params)
             return params
@@ -464,10 +461,10 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
                 pull_requests=pull_requests,
                 issues=issues
             )
-    except TypeError as err:
-        print("Проверьте правильность указания параметров скрипта: ", err)
+    except ValidationError as err:
+        print("Проверьте правильность указания параметров скрипта:\n", "\n".join(err.message))
     except (TimeoutError, ConnectionError) as err:
-        print("Проверьте подключение к сети: ", err)
+        print("Проверьте подключение к сети:\n", err)
 
     # result_data = get_result_data(params)
     # output_data(result_data)
