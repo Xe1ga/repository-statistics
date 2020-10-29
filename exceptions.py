@@ -29,9 +29,9 @@ class ConnectionError(Error):
     pass
 
 
-class NotFoundError(Error):
+class HTTPError(Error):
     """
-    Исключение, возникающее при HTTP ошибке 404, когда запрашиваемый ресурс не найден
+    Исключение, возникающее при HTTP ошибках
     """
     pass
 

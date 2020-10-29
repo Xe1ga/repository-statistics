@@ -7,11 +7,12 @@ from typing import NamedTuple, Optional
 from datetime import datetime
 from json.decoder import JSONDecodeError
 
-from exceptions import TimeoutError, ConnectionError, NotFoundError, ValidationError
+from exceptions import TimeoutError, ConnectionError, HTTPError, ValidationError
 
 
 ACCEPT = "application/vnd.github.v3+json"
-URL_BASE = "https://api.github.com"
+URL_BASE_GITHUB = "https://api.github.com"
+URL_LIMIT_GITHUB = "https://api.github.com/rate_limit"
 PER_PAGE = 100
 
 
@@ -66,6 +67,10 @@ class ResponseData(NamedTuple):
 
 class HeadersData(NamedTuple):
     """заголовки ответа, необходимые для валидации входных параметров"""
+    link: Optional[str]
+    content_length: Optional[int]
+    rate_limit_remaining: Optional[int]
+    rate_limit_reset: Optional[datetime]
     status_code: int
 
 
@@ -78,28 +83,38 @@ def get_date_from_str(date_str: str) -> datetime:
     return datetime.strptime(date_str, "%d.%m.%Y")
 
 
-def is_url(url: str) -> bool:
+def is_url(url: str, only_head: bool) -> bool:
     """
     Валидация параметра url
-    :param url:s
+    :param url:
+    :param only_head:
     :return:
     """
     try:
-        if get_response_data(url).status_code == 200:
+        if get_response_data(url, None, None, only_head).status_code == 200:
             return True
         else:
             return False
-    except NotFoundError:
+    except HTTPError:
         return False
 
 
-def is_api_key(api_key: str) -> bool:
+def is_api_key(url: str, api_key: str, only_head: bool) -> bool:
     """
     Проверка корректности api_key
+    :param url:
     :param api_key:
+    :param only_head:
     :return:
     """
-    return True
+    try:
+        if get_response_data(URL_LIMIT_GITHUB, None, get_headers(api_key), only_head).status_code == 200:
+            return True
+        else:
+            return False
+    except HTTPError:
+        return False
+
 
 
 def is_date(date: str) -> bool:
@@ -131,11 +146,11 @@ def get_validation_errors(**params) -> list:
     :return:
     """
     errors = []
-
-    if not is_url(params["url"]):
+    only_head = True
+    if not is_url(params["url"], only_head):
         errors.append(f'Неккорректно задан параметр url или репозитория с адресом {params["url"]} не существует.')
 
-    if not is_api_key(params["api_key"]):
+    if not is_api_key(params["url"], params["api_key"], only_head):
         errors.append('Авторизация не удалась. Вероятно, некорректный api_key.')
 
     if params["begin_date"] and not is_date(params["begin_date"]):
@@ -276,12 +291,47 @@ def get_num_of_pages(url: str, headers: dict) -> int:
     pass
 
 
-def get_response_data(url: str, parameters: Optional[dict] = None, headers: Optional[dict] = None) -> ResponseData:
+def get_response_headers(url: str, headers: Optional[dict] = None) -> HeadersData:
+    """
+    Получает заголовки ответа
+    :param url:
+    :param headers:
+    :return:
+    """
+    if headers is None:
+        headers = {}
+
+    try:
+        response = requests.head(url, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.exceptions.HTTPError:
+        if response.status_code == 404:
+            raise HTTPError("Запрашиваемый ресурс не найден. Проверьте корректность url.")
+        elif response.status_code == 401:
+            raise HTTPError("Не прошла авторизация. Проверьте корректность api_key.")
+        else:
+            raise HTTPError("Возникла HTTP ошибка, код ошибки: ", response.status_code)
+    except requests.exceptions.RequestException:
+        print("Что-то пошло не так. Возможно, проблемы соединения с сервером.")
+
+    return HeadersData(
+        response.headers.get('Link'),
+        response.headers.get('Content-Length'),
+        response.headers.get('X-RateLimit-Remaining'),
+        datetime.fromtimestamp(
+            response.headers.get('X-RateLimit-Reset')
+        ) if response.headers.get('X-RateLimit-Reset') else None,
+        response.status_code,
+    )
+
+
+def get_response_data(url: str, parameters: Optional[dict] = None, headers: Optional[dict] = None, only_head: bool = False) -> ResponseData:
     """
     Получить десериализованные данные ответа Response и часть необходимых заголовков
     :param url:
     :param parameters:
     :param headers:
+    :param only_head:
     :return:
     """
     if parameters is None:
@@ -291,10 +341,10 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
         headers = {}
 
     try:
-        print(url)
-        print(parameters)
-        print(headers)
-        response = requests.get(url, params=parameters, headers=headers, timeout=10)
+        if only_head:
+            response = requests.head(url, params=parameters, headers=headers, timeout=10)
+        else:
+            response = requests.get(url, params=parameters, headers=headers, timeout=10)
         response.raise_for_status()
     except requests.exceptions.Timeout:
         raise TimeoutError("Превышен таймаут получения ответа от сервера")
@@ -302,19 +352,21 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
         raise ConnectionError("Проблема соединения с сервером")
     except requests.exceptions.HTTPError:
         if response.status_code == 404:
-            raise NotFoundError("Запрашиваемый ресурс не найден")
+            raise HTTPError("Запрашиваемый ресурс не найден. Проверьте корректность url.")
+        elif response.status_code == 401:
+            raise HTTPError("Не прошла авторизация. Проверьте корректность api_key.")
+        else:
+            raise HTTPError("Возникла HTTP ошибка, код ошибки: ", response.status_code)
 
-    print("Это объект response: \n ", response)
-    print("Это тип объекта response: \n ", type(response))
-    print("Это объект response.headers: \n ", response.headers)
-    print("Это тип объекта response.headers: \n ", type(response.headers))
-
-    try:
-        response_json = response.json()
-        print("Это объект response.json(): \n ", response.json())
-        print("Это тип объекта response.json(): \n ", type(response.json()))
-    except (ValueError, JSONDecodeError):
+    if only_head:
         response_json = None
+    else:
+        try:
+            response_json = response.json()
+        except (ValueError, JSONDecodeError):
+            response_json = None
+
+    print(response.headers)
 
     return ResponseData(
         response_json,
