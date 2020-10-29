@@ -11,8 +11,6 @@ from exceptions import TimeoutError, ConnectionError, HTTPError, ValidationError
 
 
 ACCEPT = "application/vnd.github.v3+json"
-URL_BASE_GITHUB = "https://api.github.com"
-URL_LIMIT_GITHUB = "https://api.github.com/rate_limit"
 PER_PAGE = 100
 
 
@@ -83,123 +81,24 @@ def get_date_from_str(date_str: str) -> datetime:
     return datetime.strptime(date_str, "%d.%m.%Y")
 
 
-def is_url(url: str, only_head: bool) -> bool:
+def get_base_api_url(url: str) -> str:
     """
-    Валидация параметра url
+    Получить коренной endpoint api необходимого ресурса
     :param url:
-    :param only_head:
     :return:
     """
-    try:
-        if get_response_data(url, None, None, only_head).status_code == 200:
-            return True
-        else:
-            return False
-    except HTTPError:
-        return False
+    if "github" in url:
+        return "https://api.github.com"
 
 
-def is_api_key(url: str, api_key: str, only_head: bool) -> bool:
+def get_api_url_limit(url: str) -> str:
     """
-    Проверка корректности api_key
+    Получить коренной endpoint api необходимого ресурса
     :param url:
-    :param api_key:
-    :param only_head:
     :return:
     """
-    try:
-        if get_response_data(URL_LIMIT_GITHUB, None, get_headers(api_key), only_head).status_code == 200:
-            return True
-        else:
-            return False
-    except HTTPError:
-        return False
-
-
-
-def is_date(date: str) -> bool:
-    """
-    Валидация даты
-    :param date:
-    :return:
-    """
-    try:
-        date = get_date_from_str(date)
-    except ValueError:
-        return False
-    return True
-
-
-def is_branch(branch: str) -> bool:
-    """
-    Валидация наименования ветки
-    :param branch:
-    :return:
-    """
-    return True
-
-
-def get_validation_errors(**params) -> list:
-    """
-    Формирует общее сообщение об ошибках валидации параметров.
-    :param params:
-    :return:
-    """
-    errors = []
-    only_head = True
-    if not is_url(params["url"], only_head):
-        errors.append(f'Неккорректно задан параметр url или репозитория с адресом {params["url"]} не существует.')
-
-    if not is_api_key(params["url"], params["api_key"], only_head):
-        errors.append('Авторизация не удалась. Вероятно, некорректный api_key.')
-
-    if params["begin_date"] and not is_date(params["begin_date"]):
-        errors.append(f'Неккорректно задан параметр даты начала периода, {params["begin_date"]}.')
-
-    if params["end_date"] and not is_date(params["end_date"]):
-        errors.append(f'Неккорректно задан параметр даты конца периода, {params["end_date"]}.')
-
-    if not is_branch(params["branch"]):
-        errors.append(f'Ветки репозитория с указанным именем {params["branch"]} не существует.')
-
-    return errors
-
-
-def get_valid_params(func: object) -> Params:
-    """
-    Декоратор валидации параметров.
-    Возвращает параметры или бросает исключение и выводит общее сообщение об ошибках валидации.
-    :param func:
-    :return:
-    """
-    def wrapper(**params):
-        validation_errors = get_validation_errors(**params)
-        if validation_errors:
-            raise ValidationError(validation_errors)
-        else:
-            params = func(**params)
-            return params
-
-    return wrapper
-
-
-@get_valid_params
-def get_params(**params) -> Params:
-    """
-    Формирует структуру для хранения параметров скрипта
-    :param params:
-    :return:
-    """
-    return Params(
-        url=params["url"],
-        api_key=params["api_key"],
-        begin_date=get_date_from_str(params["begin_date"]) if params["begin_date"] else None,
-        end_date=get_date_from_str(params["end_date"]) if params["end_date"] else None,
-        branch=params["branch"],
-        dev_activity=params["dev_activity"],
-        pull_requests=params["pull_requests"],
-        issues=params["issues"]
-    )
+    if "github" in url:
+        return "https://api.github.com/rate_limit"
 
 
 def get_last_parts_url(url: str, num_parts: int) -> str:
@@ -219,6 +118,7 @@ def get_url_parameters_for_commits_github(params: Params) -> dict:
     :return:
     """
     pass
+
 
 def get_endpoint_url_for_commits_github(url: str, url_params: dict) -> str:
     """
@@ -281,6 +181,120 @@ def get_headers(api_key: str) -> dict:
     return {'Accept': ACCEPT, 'Authorization': f'Token {api_key}'}
 
 
+def is_url(url: str) -> bool:
+    """
+    Валидация параметра url
+    :param url:
+    :return:
+    """
+    try:
+        return get_response_headers_data(url).status_code == 200
+    except HTTPError:
+        return False
+
+
+def is_api_key(url: str, api_key: str) -> bool:
+    """
+    Проверка корректности api_key
+    :param url:
+    :param api_key:
+    :param only_head:
+    :return:
+    """
+    try:
+        return get_response_headers_data(
+            get_api_url_limit(url),
+            headers=get_headers(api_key)
+        ).status_code == 200
+    except HTTPError:
+        return False
+
+
+def is_date(date: str) -> bool:
+    """
+    Валидация даты
+    :param date:
+    :return:
+    """
+    try:
+        date = get_date_from_str(date)
+    except ValueError:
+        return False
+    return True
+
+
+def is_branch(branch: str) -> bool:
+    """
+    Валидация наименования ветки
+    :param branch:
+    :return:
+    """
+    return True
+
+
+def get_validation_errors(**params) -> list:
+    """
+    Формирует общее сообщение об ошибках валидации параметров.
+    :param params:
+    :return:
+    """
+    errors = []
+
+    if not is_url(params["url"]):
+        errors.append(f'Неккорректно задан параметр url или репозитория с адресом {params["url"]} не существует.')
+
+    if not is_api_key(params["url"], params["api_key"]):
+        errors.append('Авторизация не удалась. Вероятно, некорректный api_key.')
+
+    if params["begin_date"] and not is_date(params["begin_date"]):
+        errors.append(f'Неккорректно задан параметр даты начала периода, {params["begin_date"]}.')
+
+    if params["end_date"] and not is_date(params["end_date"]):
+        errors.append(f'Неккорректно задан параметр даты конца периода, {params["end_date"]}.')
+
+    if not is_branch(params["branch"]):
+        errors.append(f'Ветки репозитория с указанным именем {params["branch"]} не существует.')
+
+    return errors
+
+
+def get_valid_params(func: object) -> Params:
+    """
+    Декоратор валидации параметров.
+    Возвращает параметры или бросает исключение и выводит общее сообщение об ошибках валидации.
+    :param func:
+    :return:
+    """
+    def wrapper(**params):
+        validation_errors = get_validation_errors(**params)
+        if validation_errors:
+            raise ValidationError(validation_errors)
+        else:
+            params = func(**params)
+            return params
+
+    return wrapper
+
+
+@get_valid_params
+def get_params(**params) -> Params:
+    """
+    Формирует структуру для хранения параметров скрипта
+    :param params:
+    :return:
+    """
+    return Params(
+        url=params["url"],
+        api_key=params["api_key"],
+        begin_date=get_date_from_str(params["begin_date"]) if params["begin_date"] else None,
+        end_date=get_date_from_str(params["end_date"]) if params["end_date"] else None,
+        branch=params["branch"],
+        dev_activity=params["dev_activity"],
+        pull_requests=params["pull_requests"],
+        issues=params["issues"]
+    )
+
+
 def get_num_of_pages(url: str, headers: dict) -> int:
     """
     Получает число страниц ответа для пагинации
@@ -291,47 +305,13 @@ def get_num_of_pages(url: str, headers: dict) -> int:
     pass
 
 
-def get_response_headers(url: str, headers: Optional[dict] = None) -> HeadersData:
+def _get_response(url: str, method: str, parameters: Optional[dict] = None, headers: Optional[dict] = None) -> requests.Response:
     """
-    Получает заголовки ответа
-    :param url:
-    :param headers:
-    :return:
-    """
-    if headers is None:
-        headers = {}
-
-    try:
-        response = requests.head(url, headers=headers, timeout=10)
-        response.raise_for_status()
-    except requests.exceptions.HTTPError:
-        if response.status_code == 404:
-            raise HTTPError("Запрашиваемый ресурс не найден. Проверьте корректность url.")
-        elif response.status_code == 401:
-            raise HTTPError("Не прошла авторизация. Проверьте корректность api_key.")
-        else:
-            raise HTTPError("Возникла HTTP ошибка, код ошибки: ", response.status_code)
-    except requests.exceptions.RequestException:
-        print("Что-то пошло не так. Возможно, проблемы соединения с сервером.")
-
-    return HeadersData(
-        response.headers.get('Link'),
-        response.headers.get('Content-Length'),
-        response.headers.get('X-RateLimit-Remaining'),
-        datetime.fromtimestamp(
-            response.headers.get('X-RateLimit-Reset')
-        ) if response.headers.get('X-RateLimit-Reset') else None,
-        response.status_code,
-    )
-
-
-def get_response_data(url: str, parameters: Optional[dict] = None, headers: Optional[dict] = None, only_head: bool = False) -> ResponseData:
-    """
-    Получить десериализованные данные ответа Response и часть необходимых заголовков
+    Получить объект ответа requests.Response
+    :param method:
     :param url:
     :param parameters:
     :param headers:
-    :param only_head:
     :return:
     """
     if parameters is None:
@@ -340,33 +320,62 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
     if headers is None:
         headers = {}
 
+    http_error_codes = {
+        404: "Не прошла авторизация. Проверьте корректность api_key.",
+        403: "Доступ к ресурсу ограничен.",
+        404: "Запрашиваемый ресурс не найден. Проверьте корректность url."
+    }
+
     try:
-        if only_head:
-            response = requests.head(url, params=parameters, headers=headers, timeout=10)
-        else:
-            response = requests.get(url, params=parameters, headers=headers, timeout=10)
+        response = getattr(requests, method)(url, params=parameters, headers=headers, timeout=10)
         response.raise_for_status()
     except requests.exceptions.Timeout:
-        raise TimeoutError("Превышен таймаут получения ответа от сервера")
+        raise TimeoutError("Превышен таймаут получения ответа от сервера.")
     except requests.exceptions.ConnectionError:
-        raise ConnectionError("Проблема соединения с сервером")
+        raise ConnectionError("Проблема соединения с сервером.")
     except requests.exceptions.HTTPError:
-        if response.status_code == 404:
-            raise HTTPError("Запрашиваемый ресурс не найден. Проверьте корректность url.")
-        elif response.status_code == 401:
-            raise HTTPError("Не прошла авторизация. Проверьте корректность api_key.")
+        if http_error_codes.get(response.status_code):
+            raise HTTPError(http_error_codes.get(response.status_code))
         else:
-            raise HTTPError("Возникла HTTP ошибка, код ошибки: ", response.status_code)
+            raise HTTPError(f"Возникла HTTP ошибка, код ошибки: {response.status_code}.")
+    return response
 
-    if only_head:
+
+def get_response_headers_data(url: str, parameters: Optional[dict] = None, headers: Optional[dict] = None) -> HeadersData:
+    """
+    Получает заголовки ответа
+    :param url:
+    :param parameters:
+    :param headers:
+    :return:
+    """
+    response = _get_response(url, method="head", parameters=parameters, headers=headers)
+
+    return HeadersData(
+        response.headers.get('Link'),
+        response.headers.get('Content-Length'),
+        response.headers.get('X-RateLimit-Remaining'),
+        datetime.fromtimestamp(
+            int(response.headers.get('X-RateLimit-Reset'))
+        ) if response.headers.get('X-RateLimit-Reset') else None,
+        response.status_code,
+    )
+
+
+def get_response_data(url: str, parameters: Optional[dict] = None, headers: Optional[dict] = None) -> ResponseData:
+    """
+    Получить десериализованные данные ответа Response и часть необходимых заголовков
+    :param url:
+    :param parameters:
+    :param headers:
+    :return:
+    """
+    response = _get_response(url, method="get", parameters=parameters, headers=headers)
+
+    try:
+        response_json = response.json()
+    except (ValueError, JSONDecodeError):
         response_json = None
-    else:
-        try:
-            response_json = response.json()
-        except (ValueError, JSONDecodeError):
-            response_json = None
-
-    print(response.headers)
 
     return ResponseData(
         response_json,
