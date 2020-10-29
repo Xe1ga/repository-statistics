@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import sys
-
 import click
 import requests
 
-from typing import NamedTuple
-from typing import Union
-from typing import Optional
+from typing import NamedTuple, Optional
 from datetime import datetime
 from json.decoder import JSONDecodeError
+
+from exceptions import TimeoutError, ConnectionError, NotFoundError
 
 
 ACCEPT = "application/vnd.github.v3+json"
@@ -21,8 +19,8 @@ class Params(NamedTuple):
     """Параметры отчета"""
     url: str
     api_key: str
-    begin_date: Union[datetime, str, None]
-    end_date: Union[datetime, str, None]
+    begin_date: Optional[datetime]
+    end_date: Optional[datetime]
     branch: str
     dev_activity: bool
     pull_requests: bool
@@ -66,14 +64,9 @@ class ResponseData(NamedTuple):
     status_code: int
 
 
-def show_err_message_and_exit (message: str):
-    """
-    Процедура показывате сообщение об ошибке и выходит из программы
-    :param message:
-    :return:
-    """
-    print(message)
-    sys.exit(1)
+class HeadersData(NamedTuple):
+    """заголовки ответа, необходимые для валидации входных параметров"""
+    status_code: int
 
 
 def get_date_from_str(date_str: str) -> datetime:
@@ -88,12 +81,16 @@ def get_date_from_str(date_str: str) -> datetime:
 def is_url(url: str) -> bool:
     """
     Валидация параметра url
-    :param url:
+    :param url:s
     :return:
     """
-    if get_response_data(url).status_code == 200:
-        return True
-    else:
+    try:
+        response_data = get_response_data(url)
+        if response_data.status_code == 200:
+            return True
+        else:
+            return False
+    except NotFoundError:
         return False
 
 
@@ -112,14 +109,11 @@ def is_date(date: str) -> bool:
     :param date:
     :return:
     """
-    if date:
-        try:
-            begin_date = get_date_from_str(date)
-        except ValueError:
-            return False
-        return True
-    else:
-        return True
+    try:
+        date = get_date_from_str(date)
+    except ValueError:
+        return False
+    return True
 
 
 def is_branch(branch: str) -> bool:
@@ -131,27 +125,32 @@ def is_branch(branch: str) -> bool:
     return True
 
 
-def get_validation_error_message(params) -> str:
+def get_validation_errors(**params) -> list:
     """
     Формирует общее сообщение об ошибках валидации параметров.
-    :param parameters:
+    :param params:
     :return:
     """
-    message = ""
+    errors = []
 
-    if not is_url(params.url):
-        message += "Неккорректно задан параметр url или" \
-                   " репозитория с адресом {} не существует. ".format(params.url)
-    if not is_api_key(params.api_key):
-        message += "Авторизация не удалась. Вероятно, некорректный api_key.".format(params.api_key)
-    if not is_date(params.begin_date):
-        message += "Неккорректно задан параметр даты начала периода, {}. ".format(params.begin_date)
-    if not is_date(params.end_date):
-        message += "Неккорректно задан параметр даты конца периода, {}. ".format(params.end_date)
-    if not is_branch(params.branch):
-        message += "Ветки репозитория с указанным именем {} не существует. ".format(params.branch)
+    if not is_url(params["url"]):
+        errors.append(f'Неккорректно задан параметр url или репозитория с адресом {params["url"]} не существует.')
 
-    return message
+    if not is_api_key(params["api_key"]):
+        errors.append('Авторизация не удалась. Вероятно, некорректный api_key.')
+
+    if params["begin_date"]:
+        if not is_date(params["begin_date"]):
+            errors.append(f'Неккорректно задан параметр даты начала периода, {params["begin_date"]}.')
+
+    if params["end_date"]:
+        if not is_date(params["end_date"]):
+            errors.append(f'Неккорректно задан параметр даты конца периода, {params["end_date"]}.')
+
+    if not is_branch(params["branch"]):
+        errors.append(f'Ветки репозитория с указанным именем {params["branch"]} не существует.')
+
+    return errors
 
 
 def get_valid_params(func: object) -> Params:
@@ -161,37 +160,33 @@ def get_valid_params(func: object) -> Params:
     :param func:
     :return:
     """
-    def wrapper(params):
-        validation_error_message = get_validation_error_message(params)
-        if validation_error_message:
-            raise TypeError(validation_error_message)
+    def wrapper(**params):
+        validation_errors = get_validation_errors(**params)
+        if validation_errors:
+            raise TypeError(validation_errors)
         else:
-            params = func(params)
+            params = func(**params)
             return params
 
     return wrapper
 
 
 @get_valid_params
-def get_params(params: Params) -> Params:
+def get_params(**params) -> Params:
     """
     Формирует структуру для хранения параметров скрипта
-    :param url:
-    :param api_key:
-    :param begin_date:
-    :param end_date:
-    :param branch:
+    :param params:
     :return:
     """
     return Params(
-        params.url,
-        params.api_key,
-        get_date_from_str(params.begin_date) if params.begin_date else None,
-        get_date_from_str(params.end_date) if params.end_date else None,
-        params.branch if params.branch else "master",
-        params.dev_activity,
-        params.pull_requests,
-        params.issues
+        url=params["url"],
+        api_key=params["api_key"],
+        begin_date=get_date_from_str(params["begin_date"]) if params["begin_date"] else None,
+        end_date=get_date_from_str(params["end_date"]) if params["end_date"] else None,
+        branch=params["branch"],
+        dev_activity=params["dev_activity"],
+        pull_requests=params["pull_requests"],
+        issues=params["issues"]
     )
 
 
@@ -243,6 +238,7 @@ def get_endpoint_url_for_pull_requests_github(url: str, url_params: dict) -> str
     """
     pass
 
+
 def get_url_parameters_for_issues_github(params: Params, is_open: bool, is_old: bool) -> dict:
     """
     Получить словарь параметров для формирования endpoint запроса по issues
@@ -270,7 +266,7 @@ def get_headers(api_key: str) -> dict:
     :param api_key:
     :return:
     """
-    return {'Accept': ACCEPT, 'Authorization': "Token {}".format(api_key)}
+    return {'Accept': ACCEPT, 'Authorization': f'Token {api_key}'}
 
 
 def get_num_of_pages(url: str, headers: dict) -> int:
@@ -283,13 +279,19 @@ def get_num_of_pages(url: str, headers: dict) -> int:
     pass
 
 
-def get_response_data(url: str, parameters: dict={}, headers: dict={}) -> ResponseData:
+def get_response_data(url: str, parameters: Optional[dict] = None, headers: Optional[dict] = None) -> ResponseData:
     """
     Получить десериализованные данные ответа Response и часть необходимых заголовков
     :param url:
+    :param parameters:
     :param headers:
     :return:
     """
+    if parameters is None:
+        parameters = {}
+
+    if headers is None:
+        headers = {}
 
     try:
         print(url)
@@ -297,37 +299,36 @@ def get_response_data(url: str, parameters: dict={}, headers: dict={}) -> Respon
         print(headers)
         response = requests.get(url, params=parameters, headers=headers, timeout=10)
         response.raise_for_status()
-    except requests.exceptions.ConnectTimeout:
-        show_err_message_and_exit("Превышен таймаут установки соединения с сервером")
-    except requests.exceptions.ReadTimeout:
-        show_err_message_and_exit("Превышен таймаут ожидания ответа от сервера")
+    except requests.exceptions.Timeout:
+        raise TimeoutError("Превышен таймаут получения ответа от сервера")
     except requests.exceptions.ConnectionError:
-        show_err_message_and_exit("Проблема соединения с сервером")
-    except requests.exceptions.HTTPError as err:
-        show_err_message_and_exit("HTTP ошибка. Код ошибки = {}".format(response.status_code))
-    else:
-        print("Это объект response: \n ", response)
-        print("Это тип объекта response: \n ", type(response))
-        print("Это объект response.headers: \n ", response.headers)
-        print("Это тип объекта response.headers: \n ", type(response.headers))
+        raise ConnectionError("Проблема соединения с сервером")
+    except requests.exceptions.HTTPError:
+        if response.status_code == 404:
+            raise NotFoundError("Запрашиваемый ресурс не найден")
 
-        try:
-            response_json = response.json()
-            print("Это объект response.json(): \n ", response.json())
-            print("Это тип объекта response.json(): \n ", type(response.json()))
-        except (ValueError, JSONDecodeError):
-            response_json = None
+    print("Это объект response: \n ", response)
+    print("Это тип объекта response: \n ", type(response))
+    print("Это объект response.headers: \n ", response.headers)
+    print("Это тип объекта response.headers: \n ", type(response.headers))
 
-        return ResponseData(
-            response_json,
-            response.headers.get('Link'),
-            response.headers.get('Content-Length'),
-            response.headers.get('X-RateLimit-Remaining'),
-            datetime.fromtimestamp(
-                response.headers.get('X-RateLimit-Reset')
-            ) if response.headers.get('X-RateLimit-Reset') else None,
-            response.status_code,
-        )
+    try:
+        response_json = response.json()
+        print("Это объект response.json(): \n ", response.json())
+        print("Это тип объекта response.json(): \n ", type(response.json()))
+    except (ValueError, JSONDecodeError):
+        response_json = None
+
+    return ResponseData(
+        response_json,
+        response.headers.get('Link'),
+        response.headers.get('Content-Length'),
+        response.headers.get('X-RateLimit-Remaining'),
+        datetime.fromtimestamp(
+            response.headers.get('X-RateLimit-Reset')
+        ) if response.headers.get('X-RateLimit-Reset') else None,
+        response.status_code,
+    )
 
 
 def get_dev_activity(params: Params) -> DevActivity:
@@ -421,7 +422,7 @@ def output_data(result_data: ResultData):
     help='analysis end date in format "dd.mm.YYYY"'
 )
 @click.option(
-    '--branch', '-br', type=str, default="",
+    '--branch', '-br', type=str, default="master",
     help='repository branch name'
 )
 @click.option(
@@ -439,7 +440,8 @@ def output_data(result_data: ResultData):
 def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests, issues):
     """
     Script for analyzing repository statistics according to the specified parameters.
-    If the start and end dates of the analysis are not specified, then an unlimited interval is taken to the left, right or completely.
+    If the start and end dates of the analysis are not specified,
+    then an unlimited interval is taken to the left, right or completely.
     If the repository branch is not specified, the master branch is taken by default.
     The following events are optionally analyzed:
 
@@ -451,18 +453,19 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
 
     If none of the options is specified, then the analysis will be carried out in all directions.
     """
-    params = get_params(
-        params=Params(
-            url,
-            api_key,
-            begin_date,
-            end_date,
-            branch,
-            dev_activity,
-            pull_requests,
-            issues
-        )
-    )
+    try:
+        params = get_params(
+                url=url,
+                api_key=api_key,
+                begin_date=begin_date,
+                end_date=end_date,
+                branch=branch,
+                dev_activity=dev_activity,
+                pull_requests=pull_requests,
+                issues=issues
+            )
+    except TypeError as err:
+        print("Проверьте правильность указания параметров скрипта: ", err)
 
     # result_data = get_result_data(params)
     # output_data(result_data)
