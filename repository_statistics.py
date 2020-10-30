@@ -117,12 +117,7 @@ def get_api_url_limit_github(url: str) -> str:
     :param url:
     :return:
     """
-    return "".join(
-        [
-            get_base_api_url(url),
-            "/rate_limit"
-        ]
-    )
+    return f"{get_base_api_url(url)}/rate_limit"
 
 
 def get_api_url_branch(url: str, branch: str) -> str:
@@ -132,15 +127,11 @@ def get_api_url_branch(url: str, branch: str) -> str:
     :param branch:
     :return:
     """
-    return "".join(
-        [
-            get_base_api_url(url),
-            get_api_url_repos_part(url),
-            get_last_parts_url(url, 2),
-            get_api_url_branch_part(url),
-            branch
-        ]
-    )
+    return f"{get_base_api_url(url)}" \
+           f"{get_api_url_repos_part(url)}" \
+           f"{get_last_parts_url(url, 2)}" \
+           f"{get_api_url_branch_part(url)}" \
+           f"{branch}"
 
 
 def get_last_parts_url(url: str, num_parts: int) -> str:
@@ -165,11 +156,9 @@ def get_url_parameters_for_commits_github(params: Params) -> dict:
         'until': params.end_date,
         'per_page': str(PER_PAGE)
     }
-    for param, value in url_parameters.items():
-        if value is None:
-            url_parameters.pop(param)
 
-    return url_parameters
+    return {key: value for key, value in url_parameters.items() if value is not None}
+
 
 def get_endpoint_url_for_commits_github(url: str, url_params: dict) -> str:
     """
@@ -376,7 +365,7 @@ def _get_response(url: str, method: str, parameters: Optional[dict] = None, head
         headers = {}
 
     http_error_codes = {
-        404: "Не прошла авторизация. Проверьте корректность api_key.",
+        401: "Не прошла авторизация. Проверьте корректность api_key.",
         403: "Доступ к ресурсу ограничен.",
         404: "Запрашиваемый ресурс не найден. Проверьте корректность url."
     }
@@ -389,10 +378,7 @@ def _get_response(url: str, method: str, parameters: Optional[dict] = None, head
     except requests.exceptions.ConnectionError:
         raise ConnectionError("Проблема соединения с сервером.")
     except requests.exceptions.HTTPError:
-        if http_error_codes.get(response.status_code):
-            raise HTTPError(http_error_codes.get(response.status_code))
-        else:
-            raise HTTPError(f"Возникла HTTP ошибка, код ошибки: {response.status_code}.")
+        raise HTTPError(http_error_codes.get(response.status_code, f"Возникла HTTP ошибка, код ошибки: {response.status_code}."))
     return response
 
 
@@ -581,6 +567,8 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
         print("Проверьте правильность указания параметров скрипта:\n", "\n".join(err.message))
     except (TimeoutError, ConnectionError) as err:
         print("Проверьте подключение к сети:\n", err)
+    if params:
+        print(get_url_parameters_for_commits_github(params))
 
     # result_data = get_result_data(params)
     # output_data(result_data)
