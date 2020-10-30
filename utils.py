@@ -16,3 +16,13 @@ def get_date_from_str(date_str: str) -> datetime:
     :return:
     """
     return datetime.strptime(date_str, "%d.%m.%Y")
+
+
+def get_last_parts_url(url: str, num_parts: int) -> str:
+    """
+    Получает с конца из строки часть url ресурса в зависимости от параметра num_parts.
+    :param url: url ресурса
+    :param num_parts: количество частей в пространстве имен, которое будет извлечено
+    :return:
+    """
+    return "/".join(url.split("/")[-num_parts:])
