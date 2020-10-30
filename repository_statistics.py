@@ -1,72 +1,123 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import click
-from typing import NamedTuple
+import requests
+
+from typing import Optional
 from datetime import datetime
+from json.decoder import JSONDecodeError
+
+import github
+
+from utils import get_date_from_str, get_last_parts_url
+from exceptions import TimeoutError, ConnectionError, HTTPError, ValidationError
+from structure import Params, DevActivity, PullRequests, Issues, ResultData, ResponseData, HeadersData
 
 
-ACCEPT = "application/vnd.github.v3+json"
-URL_BASE = "https://api.github.com"
-PER_PAGE = 100
-
-
-class Params(NamedTuple):
-    """Параметры отчета"""
-    url: str
-    api_key: str
-    begin_date: datetime
-    end_date: datetime
-    branch: str = "master"
-
-
-class DevActivity(NamedTuple):
-    """Статистика одного разработчика по количеству коммитов"""
-    login: str
-    number_of_commits: int
-
-
-class PullRequests(NamedTuple):
-    """Статистика pull requests"""
-    open_pull_requests: int
-    closed_pull_requests: int
-    old_pull_requests: int
-
-
-class Issues(NamedTuple):
-    """Статистика issues"""
-    open_issues: int
-    closed_issues: int
-    old_issues: int
-
-
-class ResultData(NamedTuple):
-    """Результирующий набор данных"""
-    dev_activity: list[DevActivity]
-    pull_requests: PullRequests
-    issues: Issues
-
-
-class ResponseData(NamedTuple):
-    """Структура хранит десериализованный объект ответа и заголовки"""
-    result_page: list
-    header_link: str
-    header_content_length: int
-
-
-def get_date_from_str(date_str: str) -> datetime:
+def get_header_to_request(url: str, api_key: str) -> dict:
     """
-    Конвертировать строку в дату.
-    :param date_str:
+    Получить заголовки для HTTP запроса к требуемому ресурсу
+    :param url:
+    :param api_key:
     :return:
     """
-    return datetime.strptime(date_str, "%d.%m.%Y")
+    if "github" in url:
+        return github.get_headers_github(api_key)
 
 
-def get_valid_params(func: object) -> Params:
+def get_base_api_url(url: str) -> str:
     """
-    Декоратор валидации параметров.
-    Возвращает параметры или бросает исклюсение на некорректном параметре.
-    :param func:
+    Получить коренной endpoint api необходимого ресурса
+    :param url:
+    :return:
+    """
+    if "github" in url:
+        return "https://api.github.com"
+
+
+def get_api_url_repos_part(url: str) -> str:
+    """
+    Получить часть url, endpoint репозитория, для github это /repos/ для bitbucket /repositories/
+    :param url:
+    :return:
+    """
+    if "github" in url:
+        return "/repos/"
+
+
+def get_api_url_branch_part(url: str) -> str:
+    """
+    Получить часть url, endpoint для веток
+    :param url:
+    :return:
+    """
+    if "github" in url:
+        return "/branches/"
+
+
+def get_api_url_commits_part(url: str) -> str:
+    """
+    Получить часть url, endpoint для коммитов
+    :param url:
+    :return:
+    """
+    if "github" in url:
+        return "/commits"
+
+
+def get_api_url_pull_requests_part(url: str) -> str:
+    """
+    Получить часть url, endpoint для pull requests
+    :param url:
+    :return:
+    """
+    if "github" in url:
+        return "/pulls"
+
+
+def get_api_url_branch(url: str, branch: str) -> str:
+    """
+    Получить  endpoint api поиска ветки репозитория
+    :param url:
+    :param branch:
+    :return:
+    """
+    return f"{get_base_api_url(url)}" \
+           f"{get_api_url_repos_part(url)}" \
+           f"{get_last_parts_url(url, 2)}" \
+           f"{get_api_url_branch_part(url)}" \
+           f"{branch}"
+
+
+def get_endpoint_url_for_commits(url: str) -> str:
+    """
+    Формирует url для отправки запроса на получение данных по коммитам
+    :param url:
+    :return:
+    """
+    return f"{get_base_api_url(url)}" \
+           f"{get_api_url_repos_part(url)}" \
+           f"{get_last_parts_url(url, 2)}" \
+           f"{get_api_url_branch_part(url)}" \
+           f"{get_api_url_commits_part(url)}"
+
+
+def get_endpoint_url_for_pull_requests(url: str) -> str:
+    """
+    Формирует url для отправки запроса на получение данных по pull requests
+    :param url:
+    :return:
+    """
+    return f"{get_base_api_url(url)}" \
+           f"{get_api_url_repos_part(url)}" \
+           f"{get_last_parts_url(url, 2)}" \
+           f"{get_api_url_pull_requests_part(url)}"
+
+
+def get_endpoint_url_for_pull_issues_github(url: str) -> str:
+    """
+    Формирует url для отправки запроса на получение данных по issues
+    :param url:
     :return:
     """
     pass
@@ -78,107 +129,117 @@ def is_url(url: str) -> bool:
     :param url:
     :return:
     """
-    pass
+    try:
+        return get_response_headers_data(url).status_code == 200
+    except HTTPError:
+        return False
 
 
-def is_branch(branch: str) -> bool:
+def is_api_key(url: str, api_key: str) -> bool:
     """
-    Валидация наименования ветки
-    :param branch:
-    :return:
-    """
-    pass
-
-
-@get_valid_params
-def get_params(url: str, begin_date: str, end_date: str, branch: str) -> Params:
-    """
-    Формирует структуру для хранения параметров скрипта
+    Проверка корректности api_key
     :param url:
-    :param begin_date:
-    :param end_date:
-    :param branch:
-    :return:
-    """
-    pass
-
-
-def get_last_parts_url(url: str, num_parts: int) -> str:
-    """
-    Получает с конца из строки часть url ресурса в зависимости от параметра num_parts.
-    :param url: url ресурса
-    :param num_parts: количество частей в пространстве имен, которое будет извлечено
-    :return:
-    """
-    return "/".join(url.split("/")[-num_parts:])
-
-
-def get_url_parameters_for_commits_github(params: Params) -> dict:
-    """
-    Получить словарь параметров для формирования endpoint запроса по коммитам
-    :param params:
-    :return:
-    """
-    pass
-
-def get_endpoint_url_for_commits_github(url: str, url_params: dict) -> str:
-    """
-    Формирует url для отправки запроса на получение данных по коммитам
-    :param url:
-    :param url_params:
-    :return:
-    """
-    pass
-
-
-def get_url_parameters_for_pull_requests_github(params: Params, is_open: bool, is_old: bool) -> dict:
-    """
-    Получить словарь параметров для формирования endpoint запроса по pull requests
-    :param params:
-    :param is_open:
-    :param is_old:
-    :return:
-    """
-    pass
-
-
-def get_endpoint_url_for_pull_requests_github(url: str, url_params: dict) -> str:
-    """
-    Формирует url для отправки запроса на получение данных по pull requests
-    :param url:
-    :param url_params:
-    :return:
-    """
-    pass
-
-def get_url_parameters_for_issues_github(params: Params, is_open: bool, is_old: bool) -> dict:
-    """
-    Получить словарь параметров для формирования endpoint запроса по issues
-    :param params:
-    :param is_open:
-    :param is_old:
-    :return:
-    """
-    pass
-
-
-def get_endpoint_url_for_pull_issues_github(url: str, url_params: dict) -> str:
-    """
-    Формирует url для отправки запроса на получение данных по issues
-    :param url:
-    :param url_params:
-    :return:
-    """
-    pass
-
-
-def get_headers(api_key: str) -> dict:
-    """
-    Формирует заголовок запроса
     :param api_key:
     :return:
     """
-    return {'Accept': ACCEPT, 'Authorization': "Token {}".format(api_key)}
+    try:
+        return get_response_headers_data(
+            github.get_api_url_limit_github(url),
+            headers=get_header_to_request(url, api_key)
+        ).status_code == 200
+    except HTTPError:
+        return False
+
+
+def is_date(date: str) -> bool:
+    """
+    Валидация даты
+    :param date:
+    :return:
+    """
+    try:
+        date = get_date_from_str(date)
+    except ValueError:
+        return False
+    return True
+
+
+def is_branch(url: str, branch: str) -> bool:
+    """
+    Валидация наименования ветки
+    :param url:
+    :param branch:
+    :return:
+    """
+    try:
+        return get_response_headers_data(
+            get_api_url_branch(url, branch)
+        ).status_code == 200
+    except HTTPError:
+        return False
+
+
+def get_validation_errors(**params) -> list:
+    """
+    Формирует общее сообщение об ошибках валидации параметров.
+    :param params:
+    :return:
+    """
+    errors = []
+
+    if not is_url(params["url"]):
+        errors.append(f'Неккорректно задан параметр url или репозитория с адресом {params["url"]} не существует.')
+
+    if not is_api_key(params["url"], params["api_key"]):
+        errors.append('Авторизация не удалась. Вероятно, некорректный api_key.')
+
+    if params["begin_date"] and not is_date(params["begin_date"]):
+        errors.append(f'Неккорректно задан параметр даты начала периода, {params["begin_date"]}.')
+
+    if params["end_date"] and not is_date(params["end_date"]):
+        errors.append(f'Неккорректно задан параметр даты конца периода, {params["end_date"]}.')
+
+    if not is_branch(params["url"], params["branch"]):
+        errors.append(f'Ветки репозитория с указанным именем {params["branch"]} не существует.')
+
+    return errors
+
+
+def get_valid_params(func: object) -> Params:
+    """
+    Декоратор валидации параметров.
+    Возвращает параметры или бросает исключение и выводит общее сообщение об ошибках валидации.
+    :param func:
+    :return:
+    """
+    def wrapper(**params):
+        validation_errors = get_validation_errors(**params)
+        if validation_errors:
+            raise ValidationError(validation_errors)
+        else:
+            params = func(**params)
+            return params
+
+    return wrapper
+
+
+@get_valid_params
+def get_params(**params) -> Params:
+    """
+    Формирует структуру для хранения параметров скрипта
+    :param params:
+    :return:
+    """
+    return Params(
+        url=params["url"],
+        api_key=params["api_key"],
+        begin_date=get_date_from_str(params["begin_date"]) if params["begin_date"] else None,
+        end_date=get_date_from_str(params["end_date"]) if params["end_date"] else None,
+        branch=params["branch"],
+        dev_activity=params["dev_activity"],
+        pull_requests=params["pull_requests"],
+        issues=params["issues"]
+    )
 
 
 def get_num_of_pages(url: str, headers: dict) -> int:
@@ -191,14 +252,95 @@ def get_num_of_pages(url: str, headers: dict) -> int:
     pass
 
 
-def get_response_data(full_url: str, headers: dict) -> ResponseData:
+def _get_response(
+        url: str,
+        method: str,
+        parameters: Optional[dict] = None,
+        headers: Optional[dict] = None
+) -> requests.Response:
     """
-    Получить ответ на запрос с заголовками
-    :param full_url:
+    Получить объект ответа requests.Response
+    :param method:
+    :param url:
+    :param parameters:
     :param headers:
-    :return: именованный кортеж с именами полей result_page, header_link, header_content_length
+    :return:
     """
-    pass
+    if parameters is None:
+        parameters = {}
+
+    if headers is None:
+        headers = {}
+
+    http_error_codes = {
+        401: "Не прошла авторизация. Проверьте корректность api_key.",
+        403: "Доступ к ресурсу ограничен.",
+        404: "Запрашиваемый ресурс не найден. Проверьте корректность url."
+    }
+
+    try:
+        response = getattr(requests, method)(url, params=parameters, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.exceptions.Timeout:
+        raise TimeoutError("Превышен таймаут получения ответа от сервера.")
+    except requests.exceptions.ConnectionError:
+        raise ConnectionError("Проблема соединения с сервером.")
+    except requests.exceptions.HTTPError:
+        raise HTTPError(
+            http_error_codes.get(
+                response.status_code,
+                f"Возникла HTTP ошибка, код ошибки: {response.status_code}."
+            )
+        )
+    return response
+
+
+def get_response_headers_data(url: str, parameters: Optional[dict] = None, headers: Optional[dict] = None) -> HeadersData:
+    """
+    Получает заголовки ответа
+    :param url:
+    :param parameters:
+    :param headers:
+    :return:
+    """
+    response = _get_response(url, method="head", parameters=parameters, headers=headers)
+
+    return HeadersData(
+        response.headers.get('Link'),
+        response.headers.get('Content-Length'),
+        response.headers.get('X-RateLimit-Remaining'),
+        datetime.fromtimestamp(
+            int(response.headers.get('X-RateLimit-Reset'))
+        ) if response.headers.get('X-RateLimit-Reset') else None,
+        response.status_code,
+    )
+
+
+def get_response_data(url: str, parameters: Optional[dict] = None, headers: Optional[dict] = None) -> ResponseData:
+    """
+    Получить десериализованные данные ответа Response и часть необходимых заголовков
+    :param url:
+    :param parameters:
+    :param headers:
+    :return:
+    """
+    response = _get_response(url, method="get", parameters=parameters, headers=headers)
+
+    try:
+        response_json = response.json()
+    except (ValueError, JSONDecodeError):
+        response_json = None
+
+    return ResponseData(
+        response_json,
+        response.headers.get('Link'),
+        response.headers.get('Content-Length'),
+        response.headers.get('X-RateLimit-Remaining'),
+        datetime.fromtimestamp(
+            response.headers.get('X-RateLimit-Reset')
+        ) if response.headers.get('X-RateLimit-Reset') else None,
+        response.status_code,
+    )
 
 
 def get_dev_activity(params: Params) -> DevActivity:
@@ -230,10 +372,11 @@ def get_pull_requests(params: Params) -> PullRequests:
     pass
 
 
-def parse_pull_requests_from_github_page(pull_requests_list: list) -> PullRequests:
+def parse_pull_requests_from_github_page(pull_requests_list: list, is_old: bool) -> PullRequests:
     """
     Парсинг данных о статистике pull requests со страницы GitHub.
     :param pull_requests_list:
+    :param is_old:
     :return:
     """
     pass
@@ -249,10 +392,11 @@ def get_issues(params: Params) -> Issues:
     pass
 
 
-def parse_issues_from_github_page(issues_list: list) -> Issues:
+def parse_issues_from_github_page(issues_list: list, is_old: bool) -> Issues:
     """
     Парсинг данных о статистике issues со страницы GitHub.
     :param issues_list:
+    :param is_old:
     :return:
     """
     pass
@@ -281,14 +425,63 @@ def output_data(result_data: ResultData):
 
 
 @click.command()
-@click.argument('url')
-@click.argument('begin_date')
-@click.argument('end_date')
-@click.argument('branch')
-def main(url, begin_date, end_date, branch):
-    params = get_params(url, begin_date, end_date, branch)
-    result_data = get_result_data(params)
-    output_data(result_data)
+@click.argument('url', type=str)
+@click.argument('api_key', type=str)
+@click.option(
+    '--begin_date', '-b', type=str, default="",
+    help='analysis start date in format "dd.mm.YYYY"'
+)
+@click.option(
+    '--end_date', '-e', type=str, default="",
+    help='analysis end date in format "dd.mm.YYYY"'
+)
+@click.option(
+    '--branch', '-br', type=str, default="master",
+    help='repository branch name'
+)
+@click.option(
+    '--dev_activity', '-da', is_flag=True,
+    help='analyze developer activity'
+)
+@click.option(
+    '--pull_requests', '-pr', is_flag=True,
+    help='analysis of the pull requests on a given branch of the repository'
+)
+@click.option(
+    '--issues', '-i', is_flag=True,
+    help='analysis of issues on a given branch of the repository'
+)
+def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests, issues):
+    """
+    Script for analyzing repository statistics according to the specified parameters.
+    If the start and end dates of the analysis are not specified,
+    then an unlimited interval is taken to the left, right or completely.
+    If the repository branch is not specified, the master branch is taken by default.
+    The following events are optionally analyzed:
+
+        1. The activity of developers by the number of commits (--dev_activity).
+
+        2. Statistics of merge requests (--pull_requests).
+
+        3. Issues statistics (--issues).
+
+    If none of the options is specified, then the analysis will be carried out in all directions.
+    """
+    try:
+        params = get_params(
+                url=url,
+                api_key=api_key,
+                begin_date=begin_date,
+                end_date=end_date,
+                branch=branch,
+                dev_activity=dev_activity,
+                pull_requests=pull_requests,
+                issues=issues
+            )
+    except ValidationError as err:
+        print("Проверьте правильность указания параметров скрипта:\n", "\n".join(err.message))
+    except (TimeoutError, ConnectionError) as err:
+        print("Проверьте подключение к сети:\n", err)
 
 
 if __name__ == "__main__":
