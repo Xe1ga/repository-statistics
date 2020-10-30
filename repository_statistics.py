@@ -81,7 +81,7 @@ def get_date_from_str(date_str: str) -> datetime:
     return datetime.strptime(date_str, "%d.%m.%Y")
 
 
-def get_base_api_url_github(url: str) -> str:
+def get_base_api_url(url: str) -> str:
     """
     Получить коренной endpoint api необходимого ресурса
     :param url:
@@ -91,7 +91,16 @@ def get_base_api_url_github(url: str) -> str:
         return "https://api.github.com"
 
 
-def get_api_url_limit_github(url: str) -> str:
+def get_api_url_limit(url: str) -> str:
+    """
+    Получить коренной endpoint api необходимого ресурса
+    :param url:
+    :return:
+    """
+    return get_base_api_url(url) + "/rate_limit"
+
+
+def get_api_url_branch(url: str) -> str:
     """
     Получить коренной endpoint api необходимого ресурса
     :param url:
@@ -202,7 +211,7 @@ def is_api_key(url: str, api_key: str) -> bool:
     """
     try:
         return get_response_headers_data(
-            get_api_url_limit_github(url),
+            get_api_url_limit(url),
             headers=get_headers(api_key)
         ).status_code == 200
     except HTTPError:
@@ -228,7 +237,13 @@ def is_branch(branch: str) -> bool:
     :param branch:
     :return:
     """
-    return True
+    try:
+        return get_response_headers_data(
+            get_api_url_limit(url),
+            headers=get_headers(api_key)
+        ).status_code == 200
+    except HTTPError:
+        return False
 
 
 def get_validation_errors(**params) -> list:
