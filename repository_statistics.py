@@ -91,23 +91,56 @@ def get_base_api_url(url: str) -> str:
         return "https://api.github.com"
 
 
-def get_api_url_limit(url: str) -> str:
+def get_api_url_repos_part(url: str) -> str:
     """
-    Получить коренной endpoint api необходимого ресурса
-    :param url:
-    :return:
-    """
-    return get_base_api_url(url) + "/rate_limit"
-
-
-def get_api_url_branch(url: str) -> str:
-    """
-    Получить коренной endpoint api необходимого ресурса
+    Получить часть url, endpoint репозитория, для github это /repos/ для bitbucket /repositories/
     :param url:
     :return:
     """
     if "github" in url:
-        return "https://api.github.com/rate_limit"
+        return "/repos/"
+
+
+def get_api_url_branch_part(url: str) -> str:
+    """
+    Получить часть url, endpoint для веток
+    :param url:
+    :return:
+    """
+    if "github" in url:
+        return "/branches/"
+
+
+def get_api_url_limit_github(url: str) -> str:
+    """
+    Получить endpoint api ограничения скорости
+    :param url:
+    :return:
+    """
+    return "".join(
+        [
+            get_base_api_url(url),
+            "/rate_limit"
+        ]
+    )
+
+
+def get_api_url_branch(url: str, branch: str) -> str:
+    """
+    Получить  endpoint api поиска ветки репозитория
+    :param url:
+    :param branch:
+    :return:
+    """
+    return "".join(
+        [
+            get_base_api_url(url),
+            get_api_url_repos_part(url),
+            get_last_parts_url(url, 2),
+            get_api_url_branch_part(url),
+            branch
+        ]
+    )
 
 
 def get_last_parts_url(url: str, num_parts: int) -> str:
@@ -126,8 +159,17 @@ def get_url_parameters_for_commits_github(params: Params) -> dict:
     :param params:
     :return:
     """
-    pass
+    url_parameters = {
+        'sha': params.branch,
+        'since': params.begin_date,
+        'until': params.end_date,
+        'per_page': str(PER_PAGE)
+    }
+    for param, value in url_parameters.items():
+        if value is None:
+            url_parameters.pop(param)
 
+    return url_parameters
 
 def get_endpoint_url_for_commits_github(url: str, url_params: dict) -> str:
     """
@@ -211,7 +253,7 @@ def is_api_key(url: str, api_key: str) -> bool:
     """
     try:
         return get_response_headers_data(
-            get_api_url_limit(url),
+            get_api_url_limit_github(url),
             headers=get_headers(api_key)
         ).status_code == 200
     except HTTPError:
@@ -231,7 +273,7 @@ def is_date(date: str) -> bool:
     return True
 
 
-def is_branch(branch: str) -> bool:
+def is_branch(url: str, branch: str) -> bool:
     """
     Валидация наименования ветки
     :param branch:
@@ -239,8 +281,7 @@ def is_branch(branch: str) -> bool:
     """
     try:
         return get_response_headers_data(
-            get_api_url_limit(url),
-            headers=get_headers(api_key)
+            get_api_url_branch(url, branch)
         ).status_code == 200
     except HTTPError:
         return False
@@ -266,7 +307,7 @@ def get_validation_errors(**params) -> list:
     if params["end_date"] and not is_date(params["end_date"]):
         errors.append(f'Неккорректно задан параметр даты конца периода, {params["end_date"]}.')
 
-    if not is_branch(params["branch"]):
+    if not is_branch(params["url"], params["branch"]):
         errors.append(f'Ветки репозитория с указанным именем {params["branch"]} не существует.')
 
     return errors
