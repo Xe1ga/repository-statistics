@@ -4,7 +4,7 @@
 repository_statistic.exceptions
 ~~~~~~~~~~~~~~~~~~~
 
-This module contains the set exceptions.
+Модуль содержит собственные исключения проекта
 """
 class Error(Exception):
     """

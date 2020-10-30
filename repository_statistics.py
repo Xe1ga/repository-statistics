@@ -7,78 +7,13 @@ from typing import NamedTuple, Optional
 from datetime import datetime
 from json.decoder import JSONDecodeError
 
+from utils import get_date_from_str
 from exceptions import TimeoutError, ConnectionError, HTTPError, ValidationError
+from structure import Params, DevActivity, PullRequests, Issues, ResultData, ResponseData, HeadersData
 
 
 ACCEPT = "application/vnd.github.v3+json"
 PER_PAGE = 100
-
-
-class Params(NamedTuple):
-    """Параметры отчета"""
-    url: str
-    api_key: str
-    begin_date: Optional[datetime]
-    end_date: Optional[datetime]
-    branch: str
-    dev_activity: bool
-    pull_requests: bool
-    issues: bool
-
-
-class DevActivity(NamedTuple):
-    """Статистика одного разработчика по количеству коммитов"""
-    login: str
-    number_of_commits: int
-
-
-class PullRequests(NamedTuple):
-    """Статистика pull requests"""
-    open_pull_requests: int
-    closed_pull_requests: int
-    old_pull_requests: int
-
-
-class Issues(NamedTuple):
-    """Статистика issues"""
-    open_issues: int
-    closed_issues: int
-    old_issues: int
-
-
-class ResultData(NamedTuple):
-    """Результирующий набор данных"""
-    dev_activity: list[DevActivity]
-    pull_requests: PullRequests
-    issues: Issues
-
-
-class ResponseData(NamedTuple):
-    """Структура хранит десериализованный объект ответа и заголовки"""
-    response_json: Optional[list]
-    link: Optional[str]
-    content_length: Optional[int]
-    rate_limit_remaining: Optional[int]
-    rate_limit_reset: Optional[datetime]
-    status_code: int
-
-
-class HeadersData(NamedTuple):
-    """заголовки ответа, необходимые для валидации входных параметров"""
-    link: Optional[str]
-    content_length: Optional[int]
-    rate_limit_remaining: Optional[int]
-    rate_limit_reset: Optional[datetime]
-    status_code: int
-
-
-def get_date_from_str(date_str: str) -> datetime:
-    """
-    Конвертировать строку в дату.
-    :param date_str:
-    :return:
-    """
-    return datetime.strptime(date_str, "%d.%m.%Y")
 
 
 def get_base_api_url(url: str) -> str:
@@ -109,6 +44,16 @@ def get_api_url_branch_part(url: str) -> str:
     """
     if "github" in url:
         return "/branches/"
+
+
+def get_api_url_commits_part(url: str) -> str:
+    """
+    Получить часть url, endpoint для коммитов
+    :param url:
+    :return:
+    """
+    if "github" in url:
+        return "/commits"
 
 
 def get_api_url_limit_github(url: str) -> str:
@@ -160,14 +105,18 @@ def get_url_parameters_for_commits_github(params: Params) -> dict:
     return {key: value for key, value in url_parameters.items() if value is not None}
 
 
-def get_endpoint_url_for_commits_github(url: str, url_params: dict) -> str:
+def get_endpoint_url_for_commits_github(url: str) -> str:
     """
     Формирует url для отправки запроса на получение данных по коммитам
     :param url:
     :param url_params:
     :return:
     """
-    pass
+    return f"{get_base_api_url(url)}" \
+           f"{get_api_url_repos_part(url)}" \
+           f"{get_last_parts_url(url, 2)}" \
+           f"{get_api_url_branch_part(url)}" \
+           f"{get_api_url_commits_part(url)}"
 
 
 def get_url_parameters_for_pull_requests_github(params: Params, is_open: bool, is_old: bool) -> dict:
@@ -181,7 +130,7 @@ def get_url_parameters_for_pull_requests_github(params: Params, is_open: bool, i
     pass
 
 
-def get_endpoint_url_for_pull_requests_github(url: str, url_params: dict) -> str:
+def get_endpoint_url_for_pull_requests_github(url: str) -> str:
     """
     Формирует url для отправки запроса на получение данных по pull requests
     :param url:
@@ -202,7 +151,7 @@ def get_url_parameters_for_issues_github(params: Params, is_open: bool, is_old: 
     pass
 
 
-def get_endpoint_url_for_pull_issues_github(url: str, url_params: dict) -> str:
+def get_endpoint_url_for_pull_issues_github(url: str) -> str:
     """
     Формирует url для отправки запроса на получение данных по issues
     :param url:
@@ -378,7 +327,12 @@ def _get_response(url: str, method: str, parameters: Optional[dict] = None, head
     except requests.exceptions.ConnectionError:
         raise ConnectionError("Проблема соединения с сервером.")
     except requests.exceptions.HTTPError:
-        raise HTTPError(http_error_codes.get(response.status_code, f"Возникла HTTP ошибка, код ошибки: {response.status_code}."))
+        raise HTTPError(
+            http_error_codes.get(
+                response.status_code,
+                f"Возникла HTTP ошибка, код ошибки: {response.status_code}."
+            )
+        )
     return response
 
 
