@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import os
 import click
 import requests
 
@@ -7,10 +8,11 @@ from typing import Optional
 from datetime import datetime
 from json.decoder import JSONDecodeError
 
-import github
 
+import errors
+from sites import github
 from utils import get_date_from_str, get_last_parts_url
-from exceptions import TimeoutError, ConnectionError, HTTPError, ValidationError
+# from exceptions import TimeoutError, ConnectionError, HTTPError, ValidationError
 from structure import Params, DevActivity, PullRequests, Issues, ResultData, ResponseData, HeadersData
 
 
@@ -22,7 +24,7 @@ def get_header_to_request(url: str, api_key: str) -> dict:
     :return:
     """
     if "github" in url:
-        return github.get_headers_github(api_key)
+        return github.get_headers(api_key)
 
 
 def get_base_api_url(url: str) -> str:
@@ -144,7 +146,7 @@ def is_api_key(url: str, api_key: str) -> bool:
     """
     try:
         return get_response_headers_data(
-            github.get_api_url_limit_github(url),
+            github.get_api_url_limit(url),
             headers=get_header_to_request(url, api_key)
         ).status_code == 200
     except HTTPError:
@@ -158,7 +160,7 @@ def is_date(date: str) -> bool:
     :return:
     """
     try:
-        date = get_date_from_str(date)
+        get_date_from_str(date)
     except ValueError:
         return False
     return True
@@ -482,6 +484,7 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
         print("Проверьте правильность указания параметров скрипта:\n", "\n".join(err.message))
     except (TimeoutError, ConnectionError) as err:
         print("Проверьте подключение к сети:\n", err)
+    print(os.path)
 
 
 if __name__ == "__main__":
