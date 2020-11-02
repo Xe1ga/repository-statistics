@@ -14,7 +14,7 @@ ACCEPT = "application/vnd.github.v3+json"
 PER_PAGE = 100
 
 
-def get_headers_github(api_key: str) -> dict:
+def get_headers(api_key: str) -> dict:
     """
     Формирует заголовок запроса
     :param api_key:
@@ -23,7 +23,7 @@ def get_headers_github(api_key: str) -> dict:
     return {'Accept': ACCEPT, 'Authorization': f'Token {api_key}'}
 
 
-def get_api_url_limit_github(url: str) -> str:
+def get_api_url_limit(url: str) -> str:
     """
     Получить endpoint api ограничения скорости
     :param url:
@@ -32,7 +32,7 @@ def get_api_url_limit_github(url: str) -> str:
     return f"{get_base_api_url(url)}/rate_limit"
 
 
-def get_url_parameters_for_commits_github(params: Params) -> dict:
+def get_url_parameters_for_commits(params: Params) -> dict:
     """
     Получить словарь параметров для формирования endpoint запроса по коммитам
     :param params:
@@ -48,7 +48,7 @@ def get_url_parameters_for_commits_github(params: Params) -> dict:
     return {key: value for key, value in url_parameters.items() if value is not None}
 
 
-def get_url_parameters_for_pull_requests_github(params: Params, is_open: bool) -> dict:
+def get_url_parameters_for_pull_requests(params: Params, is_open: bool) -> dict:
     """
     Получить словарь параметров для формирования endpoint запроса по pull requests
     :param params:
@@ -64,7 +64,7 @@ def get_url_parameters_for_pull_requests_github(params: Params, is_open: bool) -
     return url_parameters
 
 
-def get_url_parameters_for_issues_github(is_open: bool) -> dict:
+def get_url_parameters_for_issues(is_open: bool) -> dict:
     """
     Получить словарь параметров для формирования endpoint запроса по issues
     :param is_open:
