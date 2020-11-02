@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os
 import click
 import requests
 
@@ -75,6 +74,15 @@ def get_api_url_pull_requests_part(url: str) -> str:
     if "github" in url:
         return "/pulls"
 
+def get_api_url_issues_part(url: str) -> str:
+    """
+    Получить часть url, endpoint для pull requests
+    :param url:
+    :return:
+    """
+    if "github" in url:
+        return "/issues"
+
 
 def get_api_url_branch(url: str, branch: str) -> str:
     """
@@ -99,7 +107,6 @@ def get_endpoint_url_for_commits(url: str) -> str:
     return f"{get_base_api_url(url)}" \
            f"{get_api_url_repos_part(url)}" \
            f"{get_last_parts_url(url, 2)}" \
-           f"{get_api_url_branch_part(url)}" \
            f"{get_api_url_commits_part(url)}"
 
 
@@ -121,7 +128,10 @@ def get_endpoint_url_for_pull_issues_github(url: str) -> str:
     :param url:
     :return:
     """
-    pass
+    return f"{get_base_api_url(url)}" \
+           f"{get_api_url_repos_part(url)}" \
+           f"{get_last_parts_url(url, 2)}" \
+           f"{get_api_url_issues_part(url)}"
 
 
 def is_url(url: str) -> bool:
@@ -483,7 +493,6 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
         print("Проверьте правильность указания параметров скрипта:\n", "\n".join(err.message))
     except (errors.exceptions.TimeoutError, errors.exceptions.ConnectionError) as err:
         print("Проверьте подключение к сети:\n", err)
-    print(os.path)
 
 
 if __name__ == "__main__":
