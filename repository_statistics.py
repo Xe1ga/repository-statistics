@@ -7,11 +7,11 @@ from typing import Optional
 from datetime import datetime
 from json.decoder import JSONDecodeError
 
-import errors
 import sites
+import exceptions
 
 from utils import get_date_from_str, get_last_parts_url
-from structure import Params, DevActivity, PullRequests, Issues, ResultData, ResponseData, HeadersData
+from structure import Params, PullRequests, Issues, ResultData, ResponseData, HeadersData
 
 
 def get_header_to_request(url: str, api_key: str) -> dict:
@@ -142,7 +142,7 @@ def is_url(url: str) -> bool:
     """
     try:
         return get_response_headers_data(url).status_code == 200
-    except errors.exceptions.HTTPError:
+    except exceptions.HTTPError:
         return False
 
 
@@ -158,7 +158,7 @@ def is_api_key(url: str, api_key: str) -> bool:
             sites.github.get_api_url_limit(url),
             headers=get_header_to_request(url, api_key)
         ).status_code == 200
-    except errors.exceptions.HTTPError:
+    except exceptions.HTTPError:
         return False
 
 
@@ -186,7 +186,7 @@ def is_branch(url: str, branch: str) -> bool:
         return get_response_headers_data(
             get_api_url_branch(url, branch)
         ).status_code == 200
-    except errors.exceptions.HTTPError:
+    except exceptions.HTTPError:
         return False
 
 
@@ -226,7 +226,7 @@ def get_valid_params(func: object) -> Params:
     def wrapper(**params):
         validation_errors = get_validation_errors(**params)
         if validation_errors:
-            raise errors.exceptions.ValidationError(validation_errors)
+            raise exceptions.ValidationError(validation_errors)
         else:
             params = func(**params)
             return params
@@ -292,11 +292,11 @@ def _get_response(
         response = getattr(requests, method)(url, params=parameters, headers=headers, timeout=10)
         response.raise_for_status()
     except requests.exceptions.Timeout:
-        raise errors.exceptions.TimeoutError("Превышен таймаут получения ответа от сервера.")
+        raise exceptions.TimeoutError("Превышен таймаут получения ответа от сервера.")
     except requests.exceptions.ConnectionError:
-        raise errors.exceptions.ConnectionError("Проблема соединения с сервером.")
+        raise exceptions.ConnectionError("Проблема соединения с сервером.")
     except requests.exceptions.HTTPError:
-        raise errors.exceptions.HTTPError(
+        raise exceptions.HTTPError(
             http_error_codes.get(
                 response.status_code,
                 f"Возникла HTTP ошибка, код ошибки: {response.status_code}."
@@ -493,9 +493,9 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
                 pull_requests=pull_requests,
                 issues=issues
             )
-    except errors.exceptions.ValidationError as err:
+    except exceptions.ValidationError as err:
         print("Проверьте правильность указания параметров скрипта:\n", "\n".join(err.message))
-    except (errors.exceptions.TimeoutError, errors.exceptions.ConnectionError) as err:
+    except (exceptions.TimeoutError, exceptions.ConnectionError) as err:
         print("Проверьте подключение к сети:\n", err)
     else:
         get_commits(params)
