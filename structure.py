@@ -51,8 +51,7 @@ class ResultData(NamedTuple):
 class ResponseData(NamedTuple):
     """Структура хранит десериализованный объект ответа и заголовки"""
     response_json: Optional[list]
-    link: Optional[str]
-    content_length: Optional[int]
+    links: Optional[dict]
     rate_limit_remaining: Optional[int]
     rate_limit_reset: Optional[datetime]
     status_code: int
@@ -60,8 +59,7 @@ class ResponseData(NamedTuple):
 
 class HeadersData(NamedTuple):
     """заголовки ответа, необходимые для валидации входных параметров"""
-    link: Optional[str]
-    content_length: Optional[int]
+    links: Optional[dict]
     rate_limit_remaining: Optional[int]
     rate_limit_reset: Optional[datetime]
     status_code: int

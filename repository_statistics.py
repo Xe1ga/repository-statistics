@@ -122,7 +122,7 @@ def get_endpoint_url_for_pull_requests(url: str) -> str:
            f"{get_api_url_pull_requests_part(url)}"
 
 
-def get_endpoint_url_for_pull_issues_github(url: str) -> str:
+def get_endpoint_url_for_pull_issues(url: str) -> str:
     """
     Формирует url для отправки запроса на получение данных по issues
     :param url:
@@ -253,14 +253,13 @@ def get_params(**params) -> Params:
     )
 
 
-def get_num_of_pages(url: str, headers: dict) -> int:
+def get_next_pages(links: dict) -> str:
     """
-    Получает число страниц ответа для пагинации
-    :param url:
-    :param headers:
+    Возвращает адрес следующей страницы
+    :param links:
     :return:
     """
-    pass
+    return links.get("next").get("url") if links.get("next") else ""
 
 
 def _get_response(
@@ -317,8 +316,7 @@ def get_response_headers_data(url: str, parameters: Optional[dict] = None, heade
     response = _get_response(url, method="head", parameters=parameters, headers=headers)
 
     return HeadersData(
-        response.headers.get('Link'),
-        response.headers.get('Content-Length'),
+        response.links,
         response.headers.get('X-RateLimit-Remaining'),
         datetime.fromtimestamp(
             int(response.headers.get('X-RateLimit-Reset'))
@@ -336,7 +334,12 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
     :return:
     """
     response = _get_response(url, method="get", parameters=parameters, headers=headers)
-
+    print(response.headers)
+    print(response.url)
+    print(response.links)
+    print(type(response.links))
+    print(response.headers.get('Link'))
+    print(type(response.headers.get('Link')))
     try:
         response_json = response.json()
     except (ValueError, JSONDecodeError):
@@ -344,33 +347,37 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
 
     return ResponseData(
         response_json,
-        response.headers.get('Link'),
-        response.headers.get('Content-Length'),
+        response.links,
         response.headers.get('X-RateLimit-Remaining'),
         datetime.fromtimestamp(
-            response.headers.get('X-RateLimit-Reset')
+            int(response.headers.get('X-RateLimit-Reset'))
         ) if response.headers.get('X-RateLimit-Reset') else None,
         response.status_code,
     )
 
 
-def get_dev_activity(params: Params) -> DevActivity:
+def get_commits(params: Params) -> list:
     """
-    Формирует запрос на получение данных и отправляет их на парсинг.
-    Получает статистику разработчиков по количеству коммитов.
+    Получает список словарей, содержащий информацию о коммитах
     :param params:
     :return:
     """
-    pass
+    content = []
+    url = get_endpoint_url_for_commits(params.url)
+    parameters = sites.github.get_url_parameters_for_commits(params)
 
+    while url:
+        data = get_response_data(
+            url,
+            parameters,
+            get_header_to_request(params.url, params.api_key)
+            )
+        content.extend(data.response_json)
+        url = data.links
+        parameters = None
 
-def parse_dev_activity_from_github_page(commit_list: list) -> DevActivity:
-    """
-    Парсинг данных о статистике коммитов со страницы GitHub.
-    :param commit_list:
-    :return:
-    """
-    pass
+    print(data.status_code, data.links, data.rate_limit_remaining, data.rate_limit_reset, get_next_pages(data.links))
+    return content
 
 
 def get_pull_requests(params: Params) -> PullRequests:
@@ -421,9 +428,6 @@ def get_result_data(params: Params) -> ResultData:
     :return:
     """
     pass
-    # dev_activity = get_dev_activity(params)
-    # pull_requests = get_pull_requests(params)
-    # issues = get_issues(params)
 
 
 def output_data(result_data: ResultData):
@@ -493,6 +497,8 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
         print("Проверьте правильность указания параметров скрипта:\n", "\n".join(err.message))
     except (errors.exceptions.TimeoutError, errors.exceptions.ConnectionError) as err:
         print("Проверьте подключение к сети:\n", err)
+    else:
+        get_commits(params)
 
 
 if __name__ == "__main__":

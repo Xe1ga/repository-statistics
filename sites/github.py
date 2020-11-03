@@ -6,8 +6,9 @@ repository_statistic.github
 
 Модуль содержит специфичные для github функции
 """
-from structure import Params
+from utils import add_one_to_val
 from repository_statistics import get_base_api_url
+from structure import Params, DevActivity, PullRequests, Issues
 
 
 ACCEPT = "application/vnd.github.v3+json"
@@ -76,3 +77,13 @@ def get_url_parameters_for_issues(is_open: bool) -> dict:
     }
 
     return url_parameters
+
+
+def parse_dev_activity_from_page(commits: list) -> list:
+    """
+    Подсчет данных о статистике коммитов в разрезе разработчиков на GitHub.
+    :param commits:
+    :return:
+    """
+    pass
+
