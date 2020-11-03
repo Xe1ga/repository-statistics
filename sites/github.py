@@ -85,5 +85,16 @@ def parse_dev_activity_from_page(commits: list) -> list:
     :param commits:
     :return:
     """
-    pass
+    dev_activity_all = {}
+    result = []
+
+    for commit in commits:
+        if commit.get("author"):
+            login = commit.get("author").get("login")
+            add_one_to_val(dev_activity_all, login) if dev_activity_all.get(login) else 1
+
+    for login, number_of_commits in dev_activity_all.items():
+        result.append(DevActivity(login, number_of_commits))
+
+    return sorted(result, key=lambda dev_activity: dev_activity.login, reverse=True)
 

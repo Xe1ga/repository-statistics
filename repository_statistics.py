@@ -289,6 +289,7 @@ def _get_response(
     }
 
     try:
+        print(url)
         response = getattr(requests, method)(url, params=parameters, headers=headers, timeout=10)
         response.raise_for_status()
     except requests.exceptions.Timeout:
@@ -334,12 +335,7 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
     :return:
     """
     response = _get_response(url, method="get", parameters=parameters, headers=headers)
-    print(response.headers)
-    print(response.url)
-    print(response.links)
-    print(type(response.links))
-    print(response.headers.get('Link'))
-    print(type(response.headers.get('Link')))
+
     try:
         response_json = response.json()
     except (ValueError, JSONDecodeError):
@@ -373,10 +369,9 @@ def get_commits(params: Params) -> list:
             get_header_to_request(params.url, params.api_key)
             )
         content.extend(data.response_json)
-        url = data.links
+        url = get_next_pages(data.links)
         parameters = None
 
-    print(data.status_code, data.links, data.rate_limit_remaining, data.rate_limit_reset, get_next_pages(data.links))
     return content
 
 
@@ -498,7 +493,9 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
     except (exceptions.TimeoutError, exceptions.ConnectionError) as err:
         print("Проверьте подключение к сети:\n", err)
     else:
-        get_commits(params)
+        print(sites.github.parse_dev_activity_from_page(get_commits(params)))
+
+
 
 
 if __name__ == "__main__":
