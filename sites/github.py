@@ -6,7 +6,8 @@ repository_statistic.github
 
 Модуль содержит специфичные для github функции
 """
-from utils import add_one_to_val
+from collections import Counter
+
 from repository_statistics import get_base_api_url
 from structure import Params, DevActivity, PullRequests, Issues
 
@@ -79,22 +80,16 @@ def get_url_parameters_for_issues(is_open: bool) -> dict:
     return url_parameters
 
 
-def parse_dev_activity_from_page(commits: list) -> list:
+def parse_dev_activity_from_page(commits: list) -> Counter:
     """
     Подсчет данных о статистике коммитов в разрезе разработчиков на GitHub.
     :param commits:
     :return:
     """
-    dev_activity_all = {}
     result = []
 
     for commit in commits:
         if commit.get("author"):
-            login = commit.get("author").get("login")
-            add_one_to_val(dev_activity_all, login) if dev_activity_all.get(login) else 1
+            result.append(commit.get("author").get("login"))
 
-    for login, number_of_commits in dev_activity_all.items():
-        result.append(DevActivity(login, number_of_commits))
-
-    return sorted(result, key=lambda dev_activity: dev_activity.login, reverse=True)
-
+    return Counter(result).most_common(30)

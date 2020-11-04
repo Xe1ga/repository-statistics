@@ -289,7 +289,6 @@ def _get_response(
     }
 
     try:
-        print(url)
         response = getattr(requests, method)(url, params=parameters, headers=headers, timeout=10)
         response.raise_for_status()
     except requests.exceptions.Timeout:
@@ -494,8 +493,6 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
         print("Проверьте подключение к сети:\n", err)
     else:
         print(sites.github.parse_dev_activity_from_page(get_commits(params)))
-
-
 
 
 if __name__ == "__main__":

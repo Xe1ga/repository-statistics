@@ -27,11 +27,3 @@ def get_last_parts_url(url: str, num_parts: int) -> str:
     """
     return "/".join(url.split("/")[-num_parts:])
 
-def add_one_to_val(d: dict, key: str):
-    """
-    Увеличивает значение элемента словаря на единицу
-    :param d:
-    :param key:
-    :return:
-    """
-    d[key] += 1
