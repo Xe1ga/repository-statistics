@@ -9,12 +9,13 @@ repository_statistic.github
 from collections import Counter
 
 from repository_statistics import get_base_api_url
-from structure import Params, DevActivity, PullRequests, Issues
+from structure import Params, PullRequests, Issues
 
 
 ACCEPT = "application/vnd.github.v3+json"
 PER_PAGE = 100
-
+NUM_DAYS_OLD_PULL_REQUESTS = 30
+NUM_DAYS_OLD_ISSUES = 14
 
 def get_headers(api_key: str) -> dict:
     """
@@ -82,7 +83,7 @@ def get_url_parameters_for_issues(is_open: bool) -> dict:
 
 def parse_dev_activity_from_page(commits: list) -> Counter:
     """
-    Подсчет данных о статистике коммитов в разрезе разработчиков на GitHub.
+    Парсинг данных о статистике коммитов в разрезе разработчиков на GitHub.
     :param commits:
     :return:
     """
@@ -93,3 +94,47 @@ def parse_dev_activity_from_page(commits: list) -> Counter:
             result.append(commit.get("author").get("login"))
 
     return Counter(result).most_common(30)
+
+
+def parse_pull_requests_from_page(params: Params, pull_requests_list: list) -> int:
+    """
+    Парсинг данных о статистике pull requests со страницы GitHub.
+    :param params:
+    :param pull_requests_list:
+    :return:
+    """
+    # result = []
+
+    # for pull_request in pull_requests_list:
+    #     for item_data in page_list:
+    #         if item_data.get("created_at") and (
+    #                 key_search == 'pulls' or (key_search == 'issues' and not (item_data.get("pull_request")))):
+    #             if self._since_date and self._until_date:
+    #                 if self._get_date_from_str(item_data.get("created_at")) >= self._get_date_from_str(
+    #                         self._since_date) and self._get_date_from_str(
+    #                         item_data.get("created_at")) <= self._get_date_from_str(self._until_date):
+    #                     result += 1
+    #             elif self._since_date and self._until_date == None:
+    #                 if self._get_date_from_str(item_data.get("created_at")) >= self._get_date_from_str(self._since_date):
+    #                     result += 1
+    #             elif self._since_date == None and self._until_date:
+    #                 if self._get_date_from_str(item_data.get("created_at")) <= self._get_date_from_str(self._until_date):
+    #                     result += 1
+    #             else:
+    #                 result += 1
+    #
+    # for commit in commits:
+    #     if commit.get("author"):
+    #         result.append(commit.get("author").get("login"))
+
+    return 0
+
+
+def parse_pull_requests_old_from_page(params: Params, pull_requests_list: list) -> int:
+    """
+    Парсинг данных о статистике old pull requests со страницы GitHub.
+    :param params:
+    :param pull_requests_list:
+    :return:
+    """
+    pass

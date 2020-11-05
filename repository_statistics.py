@@ -374,24 +374,29 @@ def get_commits(params: Params) -> list:
     return content
 
 
-def get_pull_requests(params: Params) -> PullRequests:
+def get_pull_requests(params: Params, is_open: bool) -> list:
     """
     Формирует запрос на получение данных и отправляет их на парсинг.
     Получает статистику pull requests.
     :param params:
+    :param is_open:
     :return:
     """
-    pass
+    content = []
+    url = get_endpoint_url_for_pull_requests(params.url)
+    parameters = sites.github.get_url_parameters_for_pull_requests(params, is_open)
 
+    while url:
+        data = get_response_data(
+            url,
+            parameters,
+            get_header_to_request(params.url, params.api_key)
+        )
+        content.extend(data.response_json)
+        url = get_next_pages(data.links)
+        parameters = None
 
-def parse_pull_requests_from_github_page(pull_requests_list: list, is_old: bool) -> PullRequests:
-    """
-    Парсинг данных о статистике pull requests со страницы GitHub.
-    :param pull_requests_list:
-    :param is_old:
-    :return:
-    """
-    pass
+    return content
 
 
 def get_issues(params: Params) -> Issues:
@@ -421,7 +426,23 @@ def get_result_data(params: Params) -> ResultData:
     :param params:
     :return:
     """
-    pass
+    dev_activity = sites.github.parse_dev_activity_from_page(get_commits(params)) if params.dev_activity else None
+    pull_requests = PullRequests(
+        sites.github.parse_pull_requests_from_page(
+            params,
+            get_pull_requests(params, is_open=True),
+        ),
+        0,
+        0
+    ) if params.pull_requests else None
+    issues = None
+
+    return ResultData(
+        dev_activity,
+        pull_requests,
+        issues
+    )
+
 
 
 def output_data(result_data: ResultData):
@@ -430,7 +451,8 @@ def output_data(result_data: ResultData):
     :param result_data:
     :return:
     """
-    pass
+    print(result_data.dev_activity)
+    print(result_data.pull_requests.open_pull_requests)
 
 
 @click.command()
@@ -483,17 +505,16 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
                 begin_date=begin_date,
                 end_date=end_date,
                 branch=branch,
-                dev_activity=dev_activity,
-                pull_requests=pull_requests,
-                issues=issues
+                dev_activity=dev_activity if True in (dev_activity, pull_requests, issues) else True,
+                pull_requests=pull_requests if True in (dev_activity, pull_requests, issues) else True,
+                issues=issues if True in (dev_activity, pull_requests, issues) else True
             )
     except exceptions.ValidationError as err:
         print("Проверьте правильность указания параметров скрипта:\n", "\n".join(err.message))
     except (exceptions.TimeoutError, exceptions.ConnectionError) as err:
         print("Проверьте подключение к сети:\n", err)
     else:
-        print(sites.github.parse_dev_activity_from_page(get_commits(params)))
-
+        output_data(get_result_data(params))
 
 if __name__ == "__main__":
     main()

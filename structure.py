@@ -21,12 +21,6 @@ class Params(NamedTuple):
     issues: bool
 
 
-class DevActivity(NamedTuple):
-    """Статистика одного разработчика по количеству коммитов"""
-    login: str
-    number_of_commits: int
-
-
 class PullRequests(NamedTuple):
     """Статистика pull requests"""
     open_pull_requests: int
@@ -43,9 +37,9 @@ class Issues(NamedTuple):
 
 class ResultData(NamedTuple):
     """Результирующий набор данных"""
-    dev_activity: list[DevActivity]
-    pull_requests: PullRequests
-    issues: Issues
+    dev_activity: Optional[list[tuple]]
+    pull_requests: Optional[PullRequests]
+    issues: Optional[Issues]
 
 
 class ResponseData(NamedTuple):
