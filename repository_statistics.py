@@ -10,7 +10,7 @@ from json.decoder import JSONDecodeError
 import sites
 import exceptions
 
-from utils import get_date_from_str, get_last_parts_url
+from utils import get_date_from_str, get_last_parts_url, get_begin_date, get_end_date
 from structure import Params, PullRequests, Issues, ResultData, ResponseData, HeadersData
 
 
@@ -73,6 +73,7 @@ def get_api_url_pull_requests_part(url: str) -> str:
     """
     if "github" in url:
         return "/pulls"
+
 
 def get_api_url_issues_part(url: str) -> str:
     """
@@ -244,8 +245,8 @@ def get_params(**params) -> Params:
     return Params(
         url=params["url"],
         api_key=params["api_key"],
-        begin_date=get_date_from_str(params["begin_date"]) if params["begin_date"] else None,
-        end_date=get_date_from_str(params["end_date"]) if params["end_date"] else None,
+        begin_date=get_begin_date(params["begin_date"]) if params["begin_date"] else None,
+        end_date=get_end_date(params["end_date"]) if params["end_date"] else None,
         branch=params["branch"],
         dev_activity=params["dev_activity"],
         pull_requests=params["pull_requests"],
@@ -305,7 +306,10 @@ def _get_response(
     return response
 
 
-def get_response_headers_data(url: str, parameters: Optional[dict] = None, headers: Optional[dict] = None) -> HeadersData:
+def get_response_headers_data(
+        url: str, parameters: Optional[dict] = None,
+        headers: Optional[dict] = None
+) -> HeadersData:
     """
     Получает заголовки ответа
     :param url:
@@ -334,7 +338,7 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
     :return:
     """
     response = _get_response(url, method="get", parameters=parameters, headers=headers)
-
+    print(url)
     try:
         response_json = response.json()
     except (ValueError, JSONDecodeError):
@@ -432,7 +436,10 @@ def get_result_data(params: Params) -> ResultData:
             params,
             get_pull_requests(params, is_open=True),
         ),
-        0,
+        sites.github.parse_pull_requests_from_page(
+            params,
+            get_pull_requests(params, is_open=False),
+        ),
         0
     ) if params.pull_requests else None
     issues = None
@@ -444,7 +451,6 @@ def get_result_data(params: Params) -> ResultData:
     )
 
 
-
 def output_data(result_data: ResultData):
     """
     Вывод результатов работы скрипта.
@@ -453,6 +459,7 @@ def output_data(result_data: ResultData):
     """
     print(result_data.dev_activity)
     print(result_data.pull_requests.open_pull_requests)
+    print(result_data.pull_requests.closed_pull_requests)
 
 
 @click.command()
@@ -515,6 +522,7 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
         print("Проверьте подключение к сети:\n", err)
     else:
         output_data(get_result_data(params))
+
 
 if __name__ == "__main__":
     main()

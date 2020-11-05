@@ -9,12 +9,13 @@ repository_statistic.structure
 from typing import NamedTuple, Optional
 from datetime import datetime
 
+
 class Params(NamedTuple):
     """Параметры отчета"""
     url: str
     api_key: str
-    begin_date: Optional[datetime]
-    end_date: Optional[datetime]
+    begin_date: Optional[str]
+    end_date: Optional[str]
     branch: str
     dev_activity: bool
     pull_requests: bool
