@@ -6,6 +6,8 @@ repository_statistic.exceptions
 
 Модуль содержит собственные исключения проекта
 """
+
+
 class Error(Exception):
     """
     Базовое исключение проекта

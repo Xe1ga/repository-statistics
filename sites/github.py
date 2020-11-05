@@ -7,9 +7,10 @@ repository_statistic.github
 Модуль содержит специфичные для github функции
 """
 from collections import Counter
+from datetime import datetime
 
 from repository_statistics import get_base_api_url
-from structure import Params, PullRequests, Issues
+from structure import Params
 from utils import get_date_from_str_without_time, in_interval
 
 
@@ -125,4 +126,65 @@ def parse_pull_requests_old_from_page(params: Params, pull_requests_list: list) 
     :param pull_requests_list:
     :return:
     """
-    pass
+    result = 0
+
+    for pull_request in pull_requests_list:
+        if pull_request.get("created_at"):
+            if in_interval(
+                    get_date_from_str_without_time(params.begin_date),
+                    get_date_from_str_without_time(params.end_date),
+                    get_date_from_str_without_time(pull_request.get("created_at"))
+            ) and is_old_obj_search(pull_request, NUM_DAYS_OLD_PULL_REQUESTS):
+                result += 1
+    return result
+
+
+def is_old_obj_search(obj_search: dict, num_days: int) -> bool:
+    """
+    Возвращает True или False в зависисмости от того, является ли pull request или issue старым
+    :param obj_search:
+    :param num_days:
+    :return:
+    """
+    return (abs(datetime.now().date() - get_date_from_str_without_time(obj_search.get("created_at"))).days
+            > num_days)
+
+
+def parse_issues_from_page(params: Params, issues_list: list) -> int:
+    """
+    Парсинг данных о статистике issues со страницы GitHub.
+    :param params:
+    :param issues_list:
+    :return:
+    """
+    result = 0
+
+    for issue in issues_list:
+        if issue.get("created_at"):
+            if in_interval(
+                    get_date_from_str_without_time(params.begin_date),
+                    get_date_from_str_without_time(params.end_date),
+                    get_date_from_str_without_time(issue.get("created_at"))
+            ):
+                result += 1
+    return result
+
+
+def parse_issues_old_from_page(params: Params, issues_list: list) -> int:
+    """
+    Парсинг данных о статистике old issues со страницы GitHub.
+    :param params:
+    :param issues_list:
+    :return:
+    """
+    result = 0
+
+    for issue in issues_list:
+        if issue.get("created_at"):
+            if in_interval(
+                    get_date_from_str_without_time(params.begin_date),
+                    get_date_from_str_without_time(params.end_date),
+                    get_date_from_str_without_time(issue.get("created_at"))
+            ) and is_old_obj_search(issue, NUM_DAYS_OLD_ISSUES):
+                result += 1
+    return result

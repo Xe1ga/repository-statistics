@@ -123,7 +123,7 @@ def get_endpoint_url_for_pull_requests(url: str) -> str:
            f"{get_api_url_pull_requests_part(url)}"
 
 
-def get_endpoint_url_for_pull_issues(url: str) -> str:
+def get_endpoint_url_for_issues(url: str) -> str:
     """
     Формирует url для отправки запроса на получение данных по issues
     :param url:
@@ -338,7 +338,7 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
     :return:
     """
     response = _get_response(url, method="get", parameters=parameters, headers=headers)
-    print(url)
+
     try:
         response_json = response.json()
     except (ValueError, JSONDecodeError):
@@ -355,7 +355,7 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
     )
 
 
-def get_commits(params: Params) -> list:
+def get_commits_page_content(params: Params) -> list:
     """
     Получает список словарей, содержащий информацию о коммитах
     :param params:
@@ -378,7 +378,7 @@ def get_commits(params: Params) -> list:
     return content
 
 
-def get_pull_requests(params: Params, is_open: bool) -> list:
+def get_pull_requests_page_content(params: Params, is_open: bool) -> list:
     """
     Формирует запрос на получение данных и отправляет их на парсинг.
     Получает статистику pull requests.
@@ -403,24 +403,81 @@ def get_pull_requests(params: Params, is_open: bool) -> list:
     return content
 
 
-def get_issues(params: Params) -> Issues:
+def get_issues_page_content(params: Params, is_open: bool) -> list:
     """
     Формирует запрос на получение данных и отправляет их на парсинг.
-    Получает статистику issues.
+    :param params:
+    :param is_open:
+    :return:
+    """
+    content = []
+    url = get_endpoint_url_for_issues(params.url)
+    parameters = sites.github.get_url_parameters_for_issues(is_open)
+
+    while url:
+        data = get_response_data(
+            url,
+            parameters,
+            get_header_to_request(params.url, params.api_key)
+        )
+        content.extend(data.response_json)
+        url = get_next_pages(data.links)
+        parameters = None
+
+    return content
+
+
+def get_dev_activity(params: Params) -> Optional[list]:
+    """
+    Получить количество коммитов (опционально)
     :param params:
     :return:
     """
-    pass
+    return sites.github.parse_dev_activity_from_page(get_commits_page_content(params)) if params.dev_activity else None
 
 
-def parse_issues_from_github_page(issues_list: list, is_old: bool) -> Issues:
+def get_pull_requests(params: Params) -> Optional[PullRequests]:
     """
-    Парсинг данных о статистике issues со страницы GitHub.
-    :param issues_list:
-    :param is_old:
+    Получить статистику pull request (опционально)
+    :param params:
     :return:
     """
-    pass
+    return PullRequests(
+        sites.github.parse_pull_requests_from_page(
+            params,
+            get_pull_requests_page_content(params, is_open=True),
+        ),
+        sites.github.parse_pull_requests_from_page(
+            params,
+            get_pull_requests_page_content(params, is_open=False),
+        ),
+        sites.github.parse_pull_requests_old_from_page(
+            params,
+            get_pull_requests_page_content(params, is_open=True),
+        )
+    ) if params.pull_requests else None
+
+
+def get_issues(params: Params) -> Optional[Issues]:
+    """
+    Получить статистику pull request (опционально)
+    :param params:
+    :return:
+    """
+    return Issues(
+        sites.github.parse_issues_from_page(
+            params,
+            get_issues_page_content(params, is_open=True),
+        ),
+        sites.github.parse_issues_from_page(
+            params,
+            get_issues_page_content(params, is_open=False),
+        ),
+        sites.github.parse_issues_old_from_page(
+            params,
+            get_issues_page_content(params, is_open=True),
+        )
+    ) if params.issues else None
 
 
 def get_result_data(params: Params) -> ResultData:
@@ -430,24 +487,10 @@ def get_result_data(params: Params) -> ResultData:
     :param params:
     :return:
     """
-    dev_activity = sites.github.parse_dev_activity_from_page(get_commits(params)) if params.dev_activity else None
-    pull_requests = PullRequests(
-        sites.github.parse_pull_requests_from_page(
-            params,
-            get_pull_requests(params, is_open=True),
-        ),
-        sites.github.parse_pull_requests_from_page(
-            params,
-            get_pull_requests(params, is_open=False),
-        ),
-        0
-    ) if params.pull_requests else None
-    issues = None
-
     return ResultData(
-        dev_activity,
-        pull_requests,
-        issues
+        get_dev_activity(params),
+        get_pull_requests(params),
+        get_issues(params)
     )
 
 
@@ -457,9 +500,13 @@ def output_data(result_data: ResultData):
     :param result_data:
     :return:
     """
-    print(result_data.dev_activity)
-    print(result_data.pull_requests.open_pull_requests)
-    print(result_data.pull_requests.closed_pull_requests)
+    print(f"COMMIT STATISTIC = {result_data.dev_activity}")
+    print(f"Number of open pull requests = {result_data.pull_requests.open_pull_requests}")
+    print(f"Number of closed pull requests = {result_data.pull_requests.closed_pull_requests}")
+    print(f"Number of old pull requests = {result_data.pull_requests.old_pull_requests}")
+    print(f"Number of open issues = {result_data.issues.open_issues}")
+    print(f"Number of closed issues = {result_data.issues.closed_issues}")
+    print(f"Number of old pull issues = {result_data.issues.old_issues}")
 
 
 @click.command()
