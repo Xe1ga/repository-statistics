@@ -512,15 +512,15 @@ def output_data(result_data: ResultData):
     help='repository branch name'
 )
 @click.option(
-    '--dev_activity', '-da', is_flag=True,
+    '--dev_activity', '-da', is_flag=False,
     help='analyze developer activity'
 )
 @click.option(
-    '--pull_requests', '-pr', is_flag=True,
+    '--pull_requests', '-pr', is_flag=False,
     help='analysis of the pull requests on a given branch of the repository'
 )
 @click.option(
-    '--issues', '-i', is_flag=True,
+    '--issues', '-i', is_flag=False,
     help='analysis of issues on a given branch of the repository'
 )
 def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests, issues):
