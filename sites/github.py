@@ -136,9 +136,9 @@ def is_old_obj_search(obj_search: dict) -> bool:
         num_days = NUM_DAYS_OLD_ISSUES
     else:
         raise exceptions.ParseError("Ошибка парсинга страницы.")
+    date_diff = abs(datetime.now().date() - get_date_from_str_without_time(obj_search.get("created_at"))).days
 
-    return (abs(datetime.now().date() - get_date_from_str_without_time(obj_search.get("created_at"))).days
-            > num_days)
+    return date_diff > num_days
 
 
 def clarify_by_issue(obj_search: dict) -> bool:
@@ -147,4 +147,4 @@ def clarify_by_issue(obj_search: dict) -> bool:
     :param obj_search:
     :return:
     """
-    return False if ("issue" in obj_search.get("url") and obj_search.get("pull_request")) else True
+    return not ("issue" in obj_search.get("url") and obj_search.get("pull_request"))
