@@ -355,16 +355,15 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
     )
 
 
-def get_commits_page_content(params: Params) -> list:
+def get_response_content_with_pagination(params: Params, url: str, parameters: dict) -> list:
     """
-    Получает список словарей, содержащий информацию о коммитах
+    Формирует список словарей - объектов поиска постранично и возвращает его
     :param params:
+    :param url:
+    :param parameters:
     :return:
     """
     content = []
-    url = get_endpoint_url_for_commits(params.url)
-    parameters = sites.github.get_url_parameters_for_commits(params)
-
     while url:
         data = get_response_data(
             url,
@@ -374,8 +373,18 @@ def get_commits_page_content(params: Params) -> list:
         content.extend(data.response_json)
         url = get_next_pages(data.links)
         parameters = None
-
     return content
+
+
+def get_commits_page_content(params: Params) -> list:
+    """
+    Получает список словарей, содержащий информацию о коммитах
+    :param params:
+    :return:
+    """
+    url = get_endpoint_url_for_commits(params.url)
+    parameters = sites.github.get_url_parameters_for_commits(params)
+    return get_response_content_with_pagination(params, url, parameters)
 
 
 def get_pull_requests_page_content(params: Params, is_open: bool) -> list:
@@ -386,21 +395,9 @@ def get_pull_requests_page_content(params: Params, is_open: bool) -> list:
     :param is_open:
     :return:
     """
-    content = []
     url = get_endpoint_url_for_pull_requests(params.url)
     parameters = sites.github.get_url_parameters_for_pull_requests(params, is_open)
-
-    while url:
-        data = get_response_data(
-            url,
-            parameters,
-            get_header_to_request(params.url, params.api_key)
-        )
-        content.extend(data.response_json)
-        url = get_next_pages(data.links)
-        parameters = None
-
-    return content
+    return get_response_content_with_pagination(params, url, parameters)
 
 
 def get_issues_page_content(params: Params, is_open: bool) -> list:
@@ -410,21 +407,9 @@ def get_issues_page_content(params: Params, is_open: bool) -> list:
     :param is_open:
     :return:
     """
-    content = []
     url = get_endpoint_url_for_issues(params.url)
     parameters = sites.github.get_url_parameters_for_issues(is_open)
-
-    while url:
-        data = get_response_data(
-            url,
-            parameters,
-            get_header_to_request(params.url, params.api_key)
-        )
-        content.extend(data.response_json)
-        url = get_next_pages(data.links)
-        parameters = None
-
-    return content
+    return get_response_content_with_pagination(params, url, parameters)
 
 
 def get_dev_activity(params: Params) -> Optional[list]:
