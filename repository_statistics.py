@@ -443,17 +443,18 @@ def get_pull_requests(params: Params) -> Optional[PullRequests]:
     :return:
     """
     return PullRequests(
-        sites.github.parse_pull_requests_from_page(
+        sites.github.parse_obj_search_from_page(
             params,
             get_pull_requests_page_content(params, is_open=True),
         ),
-        sites.github.parse_pull_requests_from_page(
+        sites.github.parse_obj_search_from_page(
             params,
             get_pull_requests_page_content(params, is_open=False),
         ),
-        sites.github.parse_pull_requests_old_from_page(
+        sites.github.parse_obj_search_from_page(
             params,
             get_pull_requests_page_content(params, is_open=True),
+            is_old=True
         )
     ) if params.pull_requests else None
 
@@ -465,17 +466,18 @@ def get_issues(params: Params) -> Optional[Issues]:
     :return:
     """
     return Issues(
-        sites.github.parse_issues_from_page(
+        sites.github.parse_obj_search_from_page(
             params,
             get_issues_page_content(params, is_open=True),
         ),
-        sites.github.parse_issues_from_page(
+        sites.github.parse_obj_search_from_page(
             params,
             get_issues_page_content(params, is_open=False),
         ),
-        sites.github.parse_issues_old_from_page(
+        sites.github.parse_obj_search_from_page(
             params,
             get_issues_page_content(params, is_open=True),
+            is_old=True
         )
     ) if params.issues else None
 
