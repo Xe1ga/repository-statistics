@@ -7,11 +7,11 @@ from typing import Optional
 from datetime import datetime
 from json.decoder import JSONDecodeError
 
-import github
+import sites
+import exceptions
 
-from utils import get_date_from_str, get_last_parts_url
-from exceptions import TimeoutError, ConnectionError, HTTPError, ValidationError
-from structure import Params, DevActivity, PullRequests, Issues, ResultData, ResponseData, HeadersData
+from utils import get_date_from_str, get_last_parts_url, get_begin_date, get_end_date
+from structure import Params, PullRequests, Issues, ResultData, ResponseData, HeadersData
 
 
 def get_header_to_request(url: str, api_key: str) -> dict:
@@ -22,7 +22,7 @@ def get_header_to_request(url: str, api_key: str) -> dict:
     :return:
     """
     if "github" in url:
-        return github.get_headers_github(api_key)
+        return sites.github.get_headers(api_key)
 
 
 def get_base_api_url(url: str) -> str:
@@ -75,6 +75,16 @@ def get_api_url_pull_requests_part(url: str) -> str:
         return "/pulls"
 
 
+def get_api_url_issues_part(url: str) -> str:
+    """
+    Получить часть url, endpoint для pull requests
+    :param url:
+    :return:
+    """
+    if "github" in url:
+        return "/issues"
+
+
 def get_api_url_branch(url: str, branch: str) -> str:
     """
     Получить  endpoint api поиска ветки репозитория
@@ -98,7 +108,6 @@ def get_endpoint_url_for_commits(url: str) -> str:
     return f"{get_base_api_url(url)}" \
            f"{get_api_url_repos_part(url)}" \
            f"{get_last_parts_url(url, 2)}" \
-           f"{get_api_url_branch_part(url)}" \
            f"{get_api_url_commits_part(url)}"
 
 
@@ -114,13 +123,16 @@ def get_endpoint_url_for_pull_requests(url: str) -> str:
            f"{get_api_url_pull_requests_part(url)}"
 
 
-def get_endpoint_url_for_pull_issues_github(url: str) -> str:
+def get_endpoint_url_for_issues(url: str) -> str:
     """
     Формирует url для отправки запроса на получение данных по issues
     :param url:
     :return:
     """
-    pass
+    return f"{get_base_api_url(url)}" \
+           f"{get_api_url_repos_part(url)}" \
+           f"{get_last_parts_url(url, 2)}" \
+           f"{get_api_url_issues_part(url)}"
 
 
 def is_url(url: str) -> bool:
@@ -131,7 +143,7 @@ def is_url(url: str) -> bool:
     """
     try:
         return get_response_headers_data(url).status_code == 200
-    except HTTPError:
+    except exceptions.HTTPError:
         return False
 
 
@@ -144,10 +156,10 @@ def is_api_key(url: str, api_key: str) -> bool:
     """
     try:
         return get_response_headers_data(
-            github.get_api_url_limit_github(url),
+            sites.github.get_api_url_limit(url),
             headers=get_header_to_request(url, api_key)
         ).status_code == 200
-    except HTTPError:
+    except exceptions.HTTPError:
         return False
 
 
@@ -158,7 +170,7 @@ def is_date(date: str) -> bool:
     :return:
     """
     try:
-        date = get_date_from_str(date)
+        get_date_from_str(date)
     except ValueError:
         return False
     return True
@@ -175,7 +187,7 @@ def is_branch(url: str, branch: str) -> bool:
         return get_response_headers_data(
             get_api_url_branch(url, branch)
         ).status_code == 200
-    except HTTPError:
+    except exceptions.HTTPError:
         return False
 
 
@@ -215,7 +227,7 @@ def get_valid_params(func: object) -> Params:
     def wrapper(**params):
         validation_errors = get_validation_errors(**params)
         if validation_errors:
-            raise ValidationError(validation_errors)
+            raise exceptions.ValidationError(validation_errors)
         else:
             params = func(**params)
             return params
@@ -233,8 +245,8 @@ def get_params(**params) -> Params:
     return Params(
         url=params["url"],
         api_key=params["api_key"],
-        begin_date=get_date_from_str(params["begin_date"]) if params["begin_date"] else None,
-        end_date=get_date_from_str(params["end_date"]) if params["end_date"] else None,
+        begin_date=get_begin_date(params["begin_date"]) if params["begin_date"] else None,
+        end_date=get_end_date(params["end_date"]) if params["end_date"] else None,
         branch=params["branch"],
         dev_activity=params["dev_activity"],
         pull_requests=params["pull_requests"],
@@ -242,14 +254,13 @@ def get_params(**params) -> Params:
     )
 
 
-def get_num_of_pages(url: str, headers: dict) -> int:
+def get_next_pages(links: dict) -> str:
     """
-    Получает число страниц ответа для пагинации
-    :param url:
-    :param headers:
+    Возвращает адрес следующей страницы
+    :param links:
     :return:
     """
-    pass
+    return links.get("next").get("url") if links.get("next") else ""
 
 
 def _get_response(
@@ -282,11 +293,11 @@ def _get_response(
         response = getattr(requests, method)(url, params=parameters, headers=headers, timeout=10)
         response.raise_for_status()
     except requests.exceptions.Timeout:
-        raise TimeoutError("Превышен таймаут получения ответа от сервера.")
+        raise exceptions.TimeoutError("Превышен таймаут получения ответа от сервера.")
     except requests.exceptions.ConnectionError:
-        raise ConnectionError("Проблема соединения с сервером.")
+        raise exceptions.ConnectionError("Проблема соединения с сервером.")
     except requests.exceptions.HTTPError:
-        raise HTTPError(
+        raise exceptions.HTTPError(
             http_error_codes.get(
                 response.status_code,
                 f"Возникла HTTP ошибка, код ошибки: {response.status_code}."
@@ -295,7 +306,10 @@ def _get_response(
     return response
 
 
-def get_response_headers_data(url: str, parameters: Optional[dict] = None, headers: Optional[dict] = None) -> HeadersData:
+def get_response_headers_data(
+        url: str, parameters: Optional[dict] = None,
+        headers: Optional[dict] = None
+) -> HeadersData:
     """
     Получает заголовки ответа
     :param url:
@@ -306,8 +320,7 @@ def get_response_headers_data(url: str, parameters: Optional[dict] = None, heade
     response = _get_response(url, method="head", parameters=parameters, headers=headers)
 
     return HeadersData(
-        response.headers.get('Link'),
-        response.headers.get('Content-Length'),
+        response.links,
         response.headers.get('X-RateLimit-Remaining'),
         datetime.fromtimestamp(
             int(response.headers.get('X-RateLimit-Reset'))
@@ -333,73 +346,125 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
 
     return ResponseData(
         response_json,
-        response.headers.get('Link'),
-        response.headers.get('Content-Length'),
+        response.links,
         response.headers.get('X-RateLimit-Remaining'),
         datetime.fromtimestamp(
-            response.headers.get('X-RateLimit-Reset')
+            int(response.headers.get('X-RateLimit-Reset'))
         ) if response.headers.get('X-RateLimit-Reset') else None,
         response.status_code,
     )
 
 
-def get_dev_activity(params: Params) -> DevActivity:
+def get_response_content_with_pagination(params: Params, url: str, parameters: dict) -> list:
     """
-    Формирует запрос на получение данных и отправляет их на парсинг.
-    Получает статистику разработчиков по количеству коммитов.
+    Формирует список словарей - объектов поиска постранично и возвращает его
+    :param params:
+    :param url:
+    :param parameters:
+    :return:
+    """
+    content = []
+    while url:
+        data = get_response_data(
+            url,
+            parameters,
+            get_header_to_request(params.url, params.api_key)
+            )
+        content.extend(data.response_json)
+        url = get_next_pages(data.links)
+        parameters = None
+    return content
+
+
+def get_commits_page_content(params: Params) -> list:
+    """
+    Получает список словарей, содержащий информацию о коммитах
     :param params:
     :return:
     """
-    pass
+    url = get_endpoint_url_for_commits(params.url)
+    parameters = sites.github.get_url_parameters_for_commits(params)
+    return get_response_content_with_pagination(params, url, parameters)
 
 
-def parse_dev_activity_from_github_page(commit_list: list) -> DevActivity:
-    """
-    Парсинг данных о статистике коммитов со страницы GitHub.
-    :param commit_list:
-    :return:
-    """
-    pass
-
-
-def get_pull_requests(params: Params) -> PullRequests:
+def get_pull_requests_page_content(params: Params, is_open: bool) -> list:
     """
     Формирует запрос на получение данных и отправляет их на парсинг.
     Получает статистику pull requests.
     :param params:
+    :param is_open:
     :return:
     """
-    pass
+    url = get_endpoint_url_for_pull_requests(params.url)
+    parameters = sites.github.get_url_parameters_for_pull_requests(params, is_open)
+    return get_response_content_with_pagination(params, url, parameters)
 
 
-def parse_pull_requests_from_github_page(pull_requests_list: list, is_old: bool) -> PullRequests:
-    """
-    Парсинг данных о статистике pull requests со страницы GitHub.
-    :param pull_requests_list:
-    :param is_old:
-    :return:
-    """
-    pass
-
-
-def get_issues(params: Params) -> Issues:
+def get_issues_page_content(params: Params, is_open: bool) -> list:
     """
     Формирует запрос на получение данных и отправляет их на парсинг.
-    Получает статистику issues.
+    :param params:
+    :param is_open:
+    :return:
+    """
+    url = get_endpoint_url_for_issues(params.url)
+    parameters = sites.github.get_url_parameters_for_issues(is_open)
+    return get_response_content_with_pagination(params, url, parameters)
+
+
+def get_dev_activity(params: Params) -> Optional[list]:
+    """
+    Получить количество коммитов (опционально)
     :param params:
     :return:
     """
-    pass
+    return sites.github.parse_dev_activity_from_page(get_commits_page_content(params)) if params.dev_activity else None
 
 
-def parse_issues_from_github_page(issues_list: list, is_old: bool) -> Issues:
+def get_pull_requests(params: Params) -> Optional[PullRequests]:
     """
-    Парсинг данных о статистике issues со страницы GitHub.
-    :param issues_list:
-    :param is_old:
+    Получить статистику pull request (опционально)
+    :param params:
     :return:
     """
-    pass
+    return PullRequests(
+        sites.github.parse_obj_search_from_page(
+            params,
+            get_pull_requests_page_content(params, is_open=True),
+        ),
+        sites.github.parse_obj_search_from_page(
+            params,
+            get_pull_requests_page_content(params, is_open=False),
+        ),
+        sites.github.parse_obj_search_from_page(
+            params,
+            get_pull_requests_page_content(params, is_open=True),
+            is_old=True
+        )
+    ) if params.pull_requests else None
+
+
+def get_issues(params: Params) -> Optional[Issues]:
+    """
+    Получить статистику pull request (опционально)
+    :param params:
+    :return:
+    """
+    return Issues(
+        sites.github.parse_obj_search_from_page(
+            params,
+            get_issues_page_content(params, is_open=True),
+        ),
+        sites.github.parse_obj_search_from_page(
+            params,
+            get_issues_page_content(params, is_open=False),
+        ),
+        sites.github.parse_obj_search_from_page(
+            params,
+            get_issues_page_content(params, is_open=True),
+            is_old=True
+        )
+    ) if params.issues else None
 
 
 def get_result_data(params: Params) -> ResultData:
@@ -409,10 +474,11 @@ def get_result_data(params: Params) -> ResultData:
     :param params:
     :return:
     """
-    pass
-    # dev_activity = get_dev_activity(params)
-    # pull_requests = get_pull_requests(params)
-    # issues = get_issues(params)
+    return ResultData(
+        get_dev_activity(params),
+        get_pull_requests(params),
+        get_issues(params)
+    )
 
 
 def output_data(result_data: ResultData):
@@ -421,7 +487,13 @@ def output_data(result_data: ResultData):
     :param result_data:
     :return:
     """
-    pass
+    print(f"COMMIT STATISTIC = {result_data.dev_activity}")
+    print(f"Number of open pull requests = {result_data.pull_requests.open_pull_requests}")
+    print(f"Number of closed pull requests = {result_data.pull_requests.closed_pull_requests}")
+    print(f"Number of old pull requests = {result_data.pull_requests.old_pull_requests}")
+    print(f"Number of open issues = {result_data.issues.open_issues}")
+    print(f"Number of closed issues = {result_data.issues.closed_issues}")
+    print(f"Number of old pull issues = {result_data.issues.old_issues}")
 
 
 @click.command()
@@ -474,14 +546,16 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
                 begin_date=begin_date,
                 end_date=end_date,
                 branch=branch,
-                dev_activity=dev_activity,
-                pull_requests=pull_requests,
-                issues=issues
+                dev_activity=dev_activity if True in (dev_activity, pull_requests, issues) else True,
+                pull_requests=pull_requests if True in (dev_activity, pull_requests, issues) else True,
+                issues=issues if True in (dev_activity, pull_requests, issues) else True
             )
-    except ValidationError as err:
+    except exceptions.ValidationError as err:
         print("Проверьте правильность указания параметров скрипта:\n", "\n".join(err.message))
-    except (TimeoutError, ConnectionError) as err:
+    except (exceptions.TimeoutError, exceptions.ConnectionError) as err:
         print("Проверьте подключение к сети:\n", err)
+    else:
+        output_data(get_result_data(params))
 
 
 if __name__ == "__main__":

@@ -6,6 +6,8 @@ repository_statistic.exceptions
 
 Модуль содержит собственные исключения проекта
 """
+
+
 class Error(Exception):
     """
     Базовое исключение проекта
@@ -39,5 +41,12 @@ class HTTPError(Error):
 class ValidationError(Error):
     """
     Исключение, возникающее при ошибках валидации
+    """
+    pass
+
+
+class ParseError(Error):
+    """
+    Исключение, возникающее при ошибках парсинга страницы
     """
     pass
