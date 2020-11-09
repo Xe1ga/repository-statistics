@@ -9,17 +9,27 @@ repository_statistic.github
 from collections import Counter
 from datetime import datetime
 
-import exceptions
 
-from repository_statistics import get_base_api_url
+from exceptions import ParseError
 from structure import Params
-from utils import get_date_from_str_without_time, in_interval
+from utils import get_date_from_str_without_time, in_interval, get_last_parts_url
 
 
 ACCEPT = "application/vnd.github.v3+json"
 PER_PAGE = 100
 NUM_DAYS_OLD_PULL_REQUESTS = 30
 NUM_DAYS_OLD_ISSUES = 14
+BASE_URL = "https://api.github.com"
+
+
+endpoints = {
+    "limit": f"{BASE_URL}/rate_limit",
+    "branch": lambda url, branch: f"{BASE_URL}/repos/{get_last_parts_url(url, 2)}/branches/{branch}",
+    "commits": lambda url: f"{BASE_URL}/repos/{get_last_parts_url(url, 2)}/commits",
+    "pulls": lambda url: f"{BASE_URL}/repos/{get_last_parts_url(url, 2)}/pulls",
+    "issues": lambda url: f"{BASE_URL}/repos/{get_last_parts_url(url, 2)}/issues"
+
+}
 
 
 def get_headers(api_key: str) -> dict:
@@ -29,15 +39,6 @@ def get_headers(api_key: str) -> dict:
     :return:
     """
     return {'Accept': ACCEPT, 'Authorization': f'Token {api_key}'}
-
-
-def get_api_url_limit(url: str) -> str:
-    """
-    Получить endpoint api ограничения скорости
-    :param url:
-    :return:
-    """
-    return f"{get_base_api_url(url)}/rate_limit"
 
 
 def get_url_parameters_for_commits(params: Params) -> dict:
@@ -135,7 +136,7 @@ def is_old_obj_search(obj_search: dict) -> bool:
     elif "issues" in url:
         num_days = NUM_DAYS_OLD_ISSUES
     else:
-        raise exceptions.ParseError("Ошибка парсинга страницы.")
+        raise ParseError("Ошибка парсинга страницы.")
     date_diff = abs(datetime.now().date() - get_date_from_str_without_time(obj_search.get("created_at"))).days
 
     return date_diff > num_days

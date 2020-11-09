@@ -3,136 +3,15 @@
 import click
 import requests
 
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 from json.decoder import JSONDecodeError
 
-import sites
-import exceptions
-
-from utils import get_date_from_str, get_last_parts_url, get_begin_date, get_end_date
+from sites.github import (endpoints, get_headers, get_url_parameters_for_commits, get_url_parameters_for_pull_requests,
+                          get_url_parameters_for_issues, parse_dev_activity_from_page, parse_obj_search_from_page)
+from exceptions import TimeoutConnectionError, ConnectError, HTTPError, ValidationError
+from utils import get_date_from_str, get_begin_date, get_end_date
 from structure import Params, PullRequests, Issues, ResultData, ResponseData, HeadersData
-
-
-def get_header_to_request(url: str, api_key: str) -> dict:
-    """
-    Получить заголовки для HTTP запроса к требуемому ресурсу
-    :param url:
-    :param api_key:
-    :return:
-    """
-    if "github" in url:
-        return sites.github.get_headers(api_key)
-
-
-def get_base_api_url(url: str) -> str:
-    """
-    Получить коренной endpoint api необходимого ресурса
-    :param url:
-    :return:
-    """
-    if "github" in url:
-        return "https://api.github.com"
-
-
-def get_api_url_repos_part(url: str) -> str:
-    """
-    Получить часть url, endpoint репозитория, для github это /repos/ для bitbucket /repositories/
-    :param url:
-    :return:
-    """
-    if "github" in url:
-        return "/repos/"
-
-
-def get_api_url_branch_part(url: str) -> str:
-    """
-    Получить часть url, endpoint для веток
-    :param url:
-    :return:
-    """
-    if "github" in url:
-        return "/branches/"
-
-
-def get_api_url_commits_part(url: str) -> str:
-    """
-    Получить часть url, endpoint для коммитов
-    :param url:
-    :return:
-    """
-    if "github" in url:
-        return "/commits"
-
-
-def get_api_url_pull_requests_part(url: str) -> str:
-    """
-    Получить часть url, endpoint для pull requests
-    :param url:
-    :return:
-    """
-    if "github" in url:
-        return "/pulls"
-
-
-def get_api_url_issues_part(url: str) -> str:
-    """
-    Получить часть url, endpoint для pull requests
-    :param url:
-    :return:
-    """
-    if "github" in url:
-        return "/issues"
-
-
-def get_api_url_branch(url: str, branch: str) -> str:
-    """
-    Получить  endpoint api поиска ветки репозитория
-    :param url:
-    :param branch:
-    :return:
-    """
-    return f"{get_base_api_url(url)}" \
-           f"{get_api_url_repos_part(url)}" \
-           f"{get_last_parts_url(url, 2)}" \
-           f"{get_api_url_branch_part(url)}" \
-           f"{branch}"
-
-
-def get_endpoint_url_for_commits(url: str) -> str:
-    """
-    Формирует url для отправки запроса на получение данных по коммитам
-    :param url:
-    :return:
-    """
-    return f"{get_base_api_url(url)}" \
-           f"{get_api_url_repos_part(url)}" \
-           f"{get_last_parts_url(url, 2)}" \
-           f"{get_api_url_commits_part(url)}"
-
-
-def get_endpoint_url_for_pull_requests(url: str) -> str:
-    """
-    Формирует url для отправки запроса на получение данных по pull requests
-    :param url:
-    :return:
-    """
-    return f"{get_base_api_url(url)}" \
-           f"{get_api_url_repos_part(url)}" \
-           f"{get_last_parts_url(url, 2)}" \
-           f"{get_api_url_pull_requests_part(url)}"
-
-
-def get_endpoint_url_for_issues(url: str) -> str:
-    """
-    Формирует url для отправки запроса на получение данных по issues
-    :param url:
-    :return:
-    """
-    return f"{get_base_api_url(url)}" \
-           f"{get_api_url_repos_part(url)}" \
-           f"{get_last_parts_url(url, 2)}" \
-           f"{get_api_url_issues_part(url)}"
 
 
 def is_url(url: str) -> bool:
@@ -143,23 +22,22 @@ def is_url(url: str) -> bool:
     """
     try:
         return get_response_headers_data(url).status_code == 200
-    except exceptions.HTTPError:
+    except HTTPError:
         return False
 
 
-def is_api_key(url: str, api_key: str) -> bool:
+def is_api_key(api_key: str) -> bool:
     """
     Проверка корректности api_key
-    :param url:
     :param api_key:
     :return:
     """
     try:
         return get_response_headers_data(
-            sites.github.get_api_url_limit(url),
-            headers=get_header_to_request(url, api_key)
+            endpoints['limit'],
+            headers=get_headers(api_key)
         ).status_code == 200
-    except exceptions.HTTPError:
+    except HTTPError:
         return False
 
 
@@ -185,9 +63,9 @@ def is_branch(url: str, branch: str) -> bool:
     """
     try:
         return get_response_headers_data(
-            get_api_url_branch(url, branch)
+            endpoints["branch"](url, branch)
         ).status_code == 200
-    except exceptions.HTTPError:
+    except HTTPError:
         return False
 
 
@@ -202,7 +80,7 @@ def get_validation_errors(**params) -> list:
     if not is_url(params["url"]):
         errors.append(f'Неккорректно задан параметр url или репозитория с адресом {params["url"]} не существует.')
 
-    if not is_api_key(params["url"], params["api_key"]):
+    if not is_api_key(params["api_key"]):
         errors.append('Авторизация не удалась. Вероятно, некорректный api_key.')
 
     if params["begin_date"] and not is_date(params["begin_date"]):
@@ -227,7 +105,7 @@ def get_valid_params(func: object) -> Params:
     def wrapper(**params):
         validation_errors = get_validation_errors(**params)
         if validation_errors:
-            raise exceptions.ValidationError(validation_errors)
+            raise ValidationError(validation_errors)
         else:
             params = func(**params)
             return params
@@ -293,14 +171,14 @@ def _get_response(
         response = getattr(requests, method)(url, params=parameters, headers=headers, timeout=10)
         response.raise_for_status()
     except requests.exceptions.Timeout:
-        raise exceptions.TimeoutError("Превышен таймаут получения ответа от сервера.")
+        raise TimeoutConnectionError("Превышен таймаут получения ответа от сервера.")
     except requests.exceptions.ConnectionError:
-        raise exceptions.ConnectionError("Проблема соединения с сервером.")
-    except requests.exceptions.HTTPError:
-        raise exceptions.HTTPError(
+        raise ConnectError("Проблема соединения с сервером.")
+    except requests.exceptions.HTTPError as err:
+        raise HTTPError(
             http_error_codes.get(
-                response.status_code,
-                f"Возникла HTTP ошибка, код ошибки: {response.status_code}."
+                err.response.status_code,
+                f"Возникла HTTP ошибка, код ошибки: {err.response.status_code}."
             )
         )
     return response
@@ -368,7 +246,7 @@ def get_response_content_with_pagination(params: Params, url: str, parameters: d
         data = get_response_data(
             url,
             parameters,
-            get_header_to_request(params.url, params.api_key)
+            get_headers(params.api_key)
             )
         content.extend(data.response_json)
         url = get_next_pages(data.links)
@@ -382,8 +260,8 @@ def get_commits_page_content(params: Params) -> list:
     :param params:
     :return:
     """
-    url = get_endpoint_url_for_commits(params.url)
-    parameters = sites.github.get_url_parameters_for_commits(params)
+    url = endpoints["commits"](params.url)
+    parameters = get_url_parameters_for_commits(params)
     return get_response_content_with_pagination(params, url, parameters)
 
 
@@ -395,8 +273,8 @@ def get_pull_requests_page_content(params: Params, is_open: bool) -> list:
     :param is_open:
     :return:
     """
-    url = get_endpoint_url_for_pull_requests(params.url)
-    parameters = sites.github.get_url_parameters_for_pull_requests(params, is_open)
+    url = endpoints["pulls"](params.url)
+    parameters = get_url_parameters_for_pull_requests(params, is_open)
     return get_response_content_with_pagination(params, url, parameters)
 
 
@@ -407,8 +285,8 @@ def get_issues_page_content(params: Params, is_open: bool) -> list:
     :param is_open:
     :return:
     """
-    url = get_endpoint_url_for_issues(params.url)
-    parameters = sites.github.get_url_parameters_for_issues(is_open)
+    url = endpoints["issues"](params.url)
+    parameters = get_url_parameters_for_issues(is_open)
     return get_response_content_with_pagination(params, url, parameters)
 
 
@@ -418,7 +296,7 @@ def get_dev_activity(params: Params) -> Optional[list]:
     :param params:
     :return:
     """
-    return sites.github.parse_dev_activity_from_page(get_commits_page_content(params)) if params.dev_activity else None
+    return parse_dev_activity_from_page(get_commits_page_content(params)) if params.dev_activity else None
 
 
 def get_pull_requests(params: Params) -> Optional[PullRequests]:
@@ -428,15 +306,15 @@ def get_pull_requests(params: Params) -> Optional[PullRequests]:
     :return:
     """
     return PullRequests(
-        sites.github.parse_obj_search_from_page(
+        parse_obj_search_from_page(
             params,
             get_pull_requests_page_content(params, is_open=True),
         ),
-        sites.github.parse_obj_search_from_page(
+        parse_obj_search_from_page(
             params,
             get_pull_requests_page_content(params, is_open=False),
         ),
-        sites.github.parse_obj_search_from_page(
+        parse_obj_search_from_page(
             params,
             get_pull_requests_page_content(params, is_open=True),
             is_old=True
@@ -451,15 +329,15 @@ def get_issues(params: Params) -> Optional[Issues]:
     :return:
     """
     return Issues(
-        sites.github.parse_obj_search_from_page(
+        parse_obj_search_from_page(
             params,
             get_issues_page_content(params, is_open=True),
         ),
-        sites.github.parse_obj_search_from_page(
+        parse_obj_search_from_page(
             params,
             get_issues_page_content(params, is_open=False),
         ),
-        sites.github.parse_obj_search_from_page(
+        parse_obj_search_from_page(
             params,
             get_issues_page_content(params, is_open=True),
             is_old=True
@@ -550,9 +428,9 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
                 pull_requests=pull_requests if True in (dev_activity, pull_requests, issues) else True,
                 issues=issues if True in (dev_activity, pull_requests, issues) else True
             )
-    except exceptions.ValidationError as err:
+    except ValidationError as err:
         print("Проверьте правильность указания параметров скрипта:\n", "\n".join(err.message))
-    except (exceptions.TimeoutError, exceptions.ConnectionError) as err:
+    except (TimeoutConnectionError, ConnectError) as err:
         print("Проверьте подключение к сети:\n", err)
     else:
         output_data(get_result_data(params))
