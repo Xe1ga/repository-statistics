@@ -8,7 +8,6 @@ from json.decoder import JSONDecodeError
 
 from structure import Params, ResponseData, HeadersData
 from exceptions import TimeoutConnectionError, ConnectError, HTTPError
-from sites.github import get_headers
 
 
 def get_next_pages(links: dict) -> str:
@@ -112,22 +111,20 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
     )
 
 
-def get_response_content_with_pagination(params: Params, url: str, parameters: dict) -> list:
+def get_response_content_with_pagination(url: str, parameters: dict, headers: dict):
     """
     Формирует список словарей - объектов поиска постранично и возвращает его
-    :param params:
     :param url:
     :param parameters:
+    :param headers:
     :return:
     """
-    content = []
     while url:
         data = get_response_data(
             url,
             parameters,
-            get_headers(params.api_key)
+            headers
             )
-        content.extend(data.response_json)
+        yield data.response_json
         url = get_next_pages(data.links)
         parameters = None
-    return content

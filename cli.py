@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import click
 
-from sites.github import (endpoints, get_headers)
+from sites.github import endpoints, get_headers
 from exceptions import TimeoutConnectionError, ConnectError, HTTPError, ValidationError
 from utils import get_date_from_str, get_begin_date, get_end_date
 from structure import Params, ResultData
