@@ -20,6 +20,7 @@ ACCEPT = "application/vnd.github.v3+json"
 PER_PAGE = 100
 NUM_DAYS_OLD_PULL_REQUESTS = 30
 NUM_DAYS_OLD_ISSUES = 14
+NUM_RECORDS = 30
 BASE_URL = "https://api.github.com"
 
 
@@ -88,7 +89,7 @@ def get_url_parameters_for_issues(is_open: bool) -> dict:
     return url_parameters
 
 
-def get_endpoint_parameters_for_commits(params: Params) -> tuple:
+def get_request_attributes_for_commits(params: Params) -> tuple:
     """
     Получает список словарей, содержащий информацию о коммитах
     :param params:
@@ -100,7 +101,7 @@ def get_endpoint_parameters_for_commits(params: Params) -> tuple:
     return url, parameters, headers
 
 
-def get_endpoint_parameters_for_pull_requests(params: Params, is_open: bool) -> tuple:
+def get_request_attributes_for_pulls(params: Params, is_open: bool) -> tuple:
     """
     Формирует запрос на получение данных и отправляет их на парсинг.
     Получает статистику pull requests.
@@ -114,7 +115,7 @@ def get_endpoint_parameters_for_pull_requests(params: Params, is_open: bool) -> 
     return url, parameters, headers
 
 
-def get_endpoint_parameters_for_issues(params: Params, is_open: bool) -> tuple:
+def get_request_attributes_for_issues(params: Params, is_open: bool) -> tuple:
     """
     Формирует запрос на получение данных и отправляет их на парсинг.
     :param params:
@@ -134,51 +135,56 @@ def parse_dev_activity_from_page(params: Params) -> list:
     :return:
     """
     result = []
-    url, parameters, headers = get_endpoint_parameters_for_commits(params)
-    for page in get_response_content_with_pagination(url, parameters, headers):
-        for commit in page:
-            if commit.get("author"):
-                result.append(commit.get("author").get("login"))
-
-    return Counter(result).most_common(30)
+    for commit in get_response_content_with_pagination(get_request_attributes_for_commits(params)):
+        if commit.get("author"):
+            result.append(commit.get("author").get("login"))
+    return Counter(result).most_common(NUM_RECORDS)
 
 
-def parse_obj_search_from_page(params: Params, obj_search: str, is_open: bool, is_old: bool = False) -> int:
+def parse_pulls_from_page(params: Params, is_open: bool, is_old: bool = False) -> int:
     """
-    Парсинг данных о статистике pull requests и issues со страницы GitHub.
+    Парсинг данных о статистике pull requests страницы GitHub.
     :param params:
-    :param obj_search:
     :param is_open:
     :param is_old:
     :return:
     """
     result = 0
-    url, parameters, headers = get_endpoint_parameters(params, obj_search, is_open)
-    for page in get_response_content_with_pagination(url, parameters, headers):
-        for obj_search in page:
-            if obj_search.get("created_at"):
-                if in_interval(
-                        get_date_from_str_without_time(params.begin_date),
-                        get_date_from_str_without_time(params.end_date),
-                        get_date_from_str_without_time(obj_search.get("created_at"))
-                ) and clarify_by_issue(obj_search) and (True if not is_old else is_old_obj_search(obj_search)):
-                    result += 1
-
+    for pull_request in get_response_content_with_pagination(get_request_attributes_for_pulls(params, is_open)):
+        result += check_and_add_obj_search(pull_request, params, is_old)
     return result
 
 
-def get_endpoint_parameters(params: Params, obj_search: str, is_open: bool) -> tuple:
+def parse_issues_from_page(params: Params, is_open: bool, is_old: bool = False) -> int:
     """
-    Возвращает endpoint и headers для pulls и issues
+    Парсинг данных о статистике issues со страницы GitHub.
     :param params:
-    :param obj_search:
     :param is_open:
+    :param is_old:
     :return:
     """
-    if "pulls" in obj_search:
-        return get_endpoint_parameters_for_pull_requests(params, is_open)
-    else:
-        return get_endpoint_parameters_for_issues(params, is_open)
+    result = 0
+    for issue in get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open)):
+        result += check_and_add_obj_search(issue, params, is_old)
+    return result
+
+
+def check_and_add_obj_search(obj_search: dict, params: Params, is_old) -> int:
+    """
+    Возвращает 1 если объект удовлетворяет условиям отбора и 0 в ином случае
+    :param obj_search:
+    :param params:
+    :param is_old:
+    :return:
+    """
+    if obj_search.get("created_at"):
+        if in_interval(
+                get_date_from_str_without_time(params.begin_date),
+                get_date_from_str_without_time(params.end_date),
+                get_date_from_str_without_time(obj_search.get("created_at"))
+        ) and clarify_by_issue(obj_search) and (True if not is_old else is_old_obj_search(obj_search)):
+            return 1
+    return 0
 
 
 def is_old_obj_search(obj_search: dict) -> bool:

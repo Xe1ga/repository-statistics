@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 from typing import Optional
 
-from sites.github import (endpoints, get_url_parameters_for_commits, get_url_parameters_for_pull_requests,
-                          get_url_parameters_for_issues, parse_dev_activity_from_page, parse_obj_search_from_page)
+from sites.github import parse_pulls_from_page, parse_dev_activity_from_page, parse_issues_from_page
 from structure import Params, PullRequests, Issues, ResultData
 
 
@@ -23,19 +22,16 @@ def get_pull_requests(params: Params) -> Optional[PullRequests]:
     :return:
     """
     return PullRequests(
-        parse_obj_search_from_page(
+        parse_pulls_from_page(
             params,
-            obj_search="pulls",
             is_open=True,
         ),
-        parse_obj_search_from_page(
+        parse_pulls_from_page(
             params,
-            obj_search="pulls",
             is_open=False,
         ),
-        parse_obj_search_from_page(
+        parse_pulls_from_page(
             params,
-            obj_search="pulls",
             is_open=True,
             is_old=True
         )
@@ -49,19 +45,16 @@ def get_issues(params: Params) -> Optional[Issues]:
     :return:
     """
     return Issues(
-        parse_obj_search_from_page(
+        parse_issues_from_page(
             params,
-            obj_search="issues",
             is_open=True,
         ),
-        parse_obj_search_from_page(
+        parse_issues_from_page(
             params,
-            obj_search="issues",
             is_open=False,
         ),
-        parse_obj_search_from_page(
+        parse_issues_from_page(
             params,
-            obj_search="issues",
             is_open=True,
             is_old=True
         )

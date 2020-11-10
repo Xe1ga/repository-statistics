@@ -111,20 +111,19 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
     )
 
 
-def get_response_content_with_pagination(url: str, parameters: dict, headers: dict):
+def get_response_content_with_pagination(request_attributes: tuple):
     """
-    Формирует список словарей - объектов поиска постранично и возвращает его
-    :param url:
-    :param parameters:
-    :param headers:
+    Формирует генератор объектов поиска постранично
+    :param request_attributes:
     :return:
     """
+    url, parameters, headers = request_attributes
     while url:
         data = get_response_data(
             url,
             parameters,
             headers
             )
-        yield data.response_json
+        yield from data.response_json
         url = get_next_pages(data.links)
         parameters = None
