@@ -6,7 +6,7 @@ from typing import Optional
 from datetime import datetime
 from json.decoder import JSONDecodeError
 
-from structure import Params, ResponseData, HeadersData
+from structure import ResponseData, HeadersData
 from exceptions import TimeoutConnectionError, ConnectError, HTTPError
 
 
