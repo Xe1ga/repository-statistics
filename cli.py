@@ -34,13 +34,20 @@ def output_data(result_data: ResultData):
     :param result_data:
     :return:
     """
-    print(f"COMMIT STATISTIC = {result_data.dev_activity}")
-    print(f"Number of open pull requests = {result_data.pull_requests.open_pull_requests}")
-    print(f"Number of closed pull requests = {result_data.pull_requests.closed_pull_requests}")
-    print(f"Number of old pull requests = {result_data.pull_requests.old_pull_requests}")
-    print(f"Number of open issues = {result_data.issues.open_issues}")
-    print(f"Number of closed issues = {result_data.issues.closed_issues}")
-    print(f"Number of old pull issues = {result_data.issues.old_issues}")
+    if result_data.dev_activity:
+        print("1. COMMIT STATISTICS")
+        print('{0:25} | {1:10}'.format("login", "number of commits"))
+        print("-" * 46)
+        for developer in result_data.dev_activity:
+            print('{0:25} | {1:10d}'.format(developer[0], developer[1]))
+    if result_data.pull_requests:
+        print(f"2.Number of open pull requests = {result_data.pull_requests.open_pull_requests}")
+        print(f"3.Number of closed pull requests = {result_data.pull_requests.closed_pull_requests}")
+        print(f"4.Number of old pull requests = {result_data.pull_requests.old_pull_requests}")
+    if result_data.issues:
+        print(f"5.Number of open issues = {result_data.issues.open_issues}")
+        print(f"6.Number of closed issues = {result_data.issues.closed_issues}")
+        print(f"7.Number of old pull issues = {result_data.issues.old_issues}")
 
 
 @click.command()
@@ -70,7 +77,11 @@ def output_data(result_data: ResultData):
     '--issues', '-i', is_flag=True,
     help='analysis of issues on a given branch of the repository'
 )
-def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests, issues):
+@click.option(
+    '--all_active', '-all', is_flag=True,
+    help='analysis all activities (developer activity, pull requests, issues) on a given branch of the repository'
+)
+def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests, issues, all_active):
     """
     Script for analyzing repository statistics according to the specified parameters.
     If the start and end dates of the analysis are not specified,
@@ -84,8 +95,10 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
 
         3. Issues statistics (--issues).
 
-    If none of the options is specified, then the analysis will be carried out in all directions.
+    Or you can select all activities by setting the flag --all_active.
     """
+    if all_active:
+        dev_activity = pull_requests = issues = True
     try:
         params = get_params(
                 url=url,
@@ -93,9 +106,9 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
                 begin_date=begin_date,
                 end_date=end_date,
                 branch=branch,
-                dev_activity=dev_activity if True in (dev_activity, pull_requests, issues) else True,
-                pull_requests=pull_requests if True in (dev_activity, pull_requests, issues) else True,
-                issues=issues if True in (dev_activity, pull_requests, issues) else True
+                dev_activity=dev_activity,
+                pull_requests=pull_requests,
+                issues=issues
             )
     except ValidationError as err:
         print("Проверьте правильность указания параметров скрипта:\n", "\n".join(err.message))
