@@ -217,17 +217,3 @@ def clarify_by_issue(obj_search: dict) -> bool:
     :return:
     """
     return not ("issue" in obj_search.get("url") and obj_search.get("pull_request"))
-
-
-def identify_affiliation(params: Params, obj_search: dict) -> bool:
-    """
-    Определить принадлежность даты интервалу времени, заданному параметрами скрипта
-    :param params:
-    :param obj_search:
-    :return:
-    """
-    return in_interval(
-        get_date_from_str_without_time(params.begin_date),
-        get_date_from_str_without_time(params.end_date),
-        get_date_from_str_without_time(obj_search.get("created_at"))
-    )
