@@ -3,8 +3,8 @@
 from typing import Optional
 from functools import reduce
 
-from sites.github import (parse_dev_activity_from_page, select_issues,
-                          select_pull_requests)
+from sites.github import (parse_dev_activity_from_page, get_map_units_for_each_issues,
+                          get_map_units_for_each_pulls)
 from structure import Params, PullRequests, Issues, ResultData
 
 
@@ -24,9 +24,9 @@ def get_pull_requests(params: Params) -> Optional[PullRequests]:
     :return:
     """
     return PullRequests(
-        sum(select_pull_requests(params, is_open=True)),
-        sum(select_pull_requests(params, is_open=False)),
-        sum(select_pull_requests(params, is_open=True, is_old=True))
+        sum(get_map_units_for_each_pulls(params, is_open=True)),
+        sum(get_map_units_for_each_pulls(params, is_open=False)),
+        sum(get_map_units_for_each_pulls(params, is_open=True, is_old=True))
     ) if params.pull_requests else None
 
 
@@ -37,9 +37,9 @@ def get_issues(params: Params) -> Optional[Issues]:
     :return:
     """
     return Issues(
-        sum(select_issues(params, is_open=True)),
-        sum(select_issues(params, is_open=False)),
-        sum(select_issues(params, is_open=True, is_old=True))
+        sum(get_map_units_for_each_issues(params, is_open=True)),
+        sum(get_map_units_for_each_issues(params, is_open=False)),
+        sum(get_map_units_for_each_issues(params, is_open=True, is_old=True))
     ) if params.issues else None
 
 

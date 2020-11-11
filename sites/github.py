@@ -141,9 +141,9 @@ def parse_dev_activity_from_page(params: Params) -> list:
     return Counter(result).most_common(NUM_RECORDS)
 
 
-def select_pull_requests(params: Params, is_open: bool, is_old: bool = False) -> map:
+def get_map_units_for_each_pulls(params: Params, is_open: bool, is_old: bool = False) -> map:
     """
-    Отбирает из всех pull requests, удовлетворяющие параметрам скрипта
+    Получает объект map - итератор из единиц для каждого pull request, удовлетворяющего условиям отбора
     :param params:
     :param is_open:
     :param is_old:
@@ -158,7 +158,7 @@ def select_pull_requests(params: Params, is_open: bool, is_old: bool = False) ->
            )
 
 
-def select_issues(params: Params, is_open: bool, is_old: bool = False) -> map:
+def get_map_units_for_each_issues(params: Params, is_open: bool, is_old: bool = False) -> map:
     """
     Отбирает из всех pull requests, удовлетворяющие параметрам скрипта
     :param params:
