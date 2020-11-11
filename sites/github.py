@@ -10,7 +10,6 @@ from collections import Counter
 from datetime import datetime
 from functools import partial
 
-from exceptions import ParseError
 from structure import Params
 from utils import get_date_from_str_without_time, in_interval, get_last_parts_url
 from httpclient import get_response_content_with_pagination

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import click
 
-from exceptions import TimeoutConnectionError, ConnectError, ValidationError, ParseError, HTTPError
+from exceptions import TimeoutConnectionError, ConnectError, ValidationError, HTTPError
 from utils import get_begin_date, get_end_date
 from structure import Params, ResultData
 from calculations import get_result_data
@@ -99,7 +99,7 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
     """
     if all_active:
         dev_activity = pull_requests = issues = True
-    params = None
+    params = result_data = None
     try:
         params = get_params(
                 url=url,
@@ -120,7 +120,7 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
         result_data = get_result_data(params)
     except (TimeoutConnectionError, ConnectError) as err:
         print("Проверьте подключение к сети:\n", err)
-    except (HTTPError, ParseError) as err:
+    except HTTPError as err:
         print(err.message)
 
     output_data(result_data) if result_data else print("Что-то пошло не так, результирующий набор данных не вычислен.")
