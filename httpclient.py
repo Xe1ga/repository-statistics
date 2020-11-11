@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import requests
 
-from typing import Optional
+from typing import Optional, Generator
 from datetime import datetime
 from json.decoder import JSONDecodeError
 
@@ -111,7 +111,7 @@ def get_response_data(url: str, parameters: Optional[dict] = None, headers: Opti
     )
 
 
-def get_response_content_with_pagination(request_attributes: tuple):
+def get_response_content_with_pagination(request_attributes: tuple) -> Generator:
     """
     Формирует генератор объектов поиска постранично
     :param request_attributes:

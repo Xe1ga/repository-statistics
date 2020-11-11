@@ -141,68 +141,62 @@ def parse_dev_activity_from_page(params: Params) -> list:
     return Counter(result).most_common(NUM_RECORDS)
 
 
-def parse_pulls_from_page(params: Params, is_open: bool, is_old: bool = False) -> int:
+def select_pull_requests(params: Params, is_open: bool, is_old: bool = False) -> map:
     """
-    Парсинг данных о статистике pull requests страницы GitHub.
+    Отбирает из всех pull requests, удовлетворяющие параметрам скрипта
     :param params:
     :param is_open:
     :param is_old:
     :return:
     """
-    result = 0
-    for pull_request in get_response_content_with_pagination(get_request_attributes_for_pulls(params, is_open)):
-        result += check_and_add_obj_search(pull_request, params, is_old)
-    return result
+    return(map(lambda pr: 1,
+               filter(
+                   lambda pr: identify_affiliation(params, pr) and is_old_obj_search(pr, is_old),
+                   get_response_content_with_pagination(get_request_attributes_for_pulls(params, is_open))
+               )
+               )
+           )
 
 
-def parse_issues_from_page(params: Params, is_open: bool, is_old: bool = False) -> int:
+def select_issues(params: Params, is_open: bool, is_old: bool = False) -> map:
     """
-    Парсинг данных о статистике issues со страницы GitHub.
+    Отбирает из всех pull requests, удовлетворяющие параметрам скрипта
     :param params:
     :param is_open:
     :param is_old:
     :return:
     """
-    result = 0
-    for issue in get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open)):
-        result += check_and_add_obj_search(issue, params, is_old)
-    return result
+    return(map(lambda issue: 1,
+               filter(
+                   lambda issue: (identify_affiliation(params, issue)
+                                  and is_old_obj_search(issue, is_old)
+                                  and clarify_by_issue(issue)),
+                   get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open))
+               )
+               )
+           )
 
 
-def check_and_add_obj_search(obj_search: dict, params: Params, is_old) -> int:
+def is_old_obj_search(obj_search: dict, is_old: bool) -> bool:
     """
-    Возвращает 1 если объект удовлетворяет условиям отбора и 0 в ином случае
+    Если флаг is_old установлен, то возвращает True или False в зависисмости от того,
+    является ли pull request или issue старым, иначе возвращает True
     :param obj_search:
-    :param params:
     :param is_old:
     :return:
     """
-    if obj_search.get("created_at"):
-        if in_interval(
-                get_date_from_str_without_time(params.begin_date),
-                get_date_from_str_without_time(params.end_date),
-                get_date_from_str_without_time(obj_search.get("created_at"))
-        ) and clarify_by_issue(obj_search) and (True if not is_old else is_old_obj_search(obj_search)):
-            return 1
-    return 0
+    if is_old:
+        url = obj_search.get("url")
+        if "pulls" in url:
+            num_days = NUM_DAYS_OLD_PULL_REQUESTS
+        elif "issues" in url:
+            num_days = NUM_DAYS_OLD_ISSUES
+        else:
+            raise ParseError("Ошибка парсинга страницы.")
+        date_diff = abs(datetime.now().date() - get_date_from_str_without_time(obj_search.get("created_at"))).days
+        return date_diff > num_days
 
-
-def is_old_obj_search(obj_search: dict) -> bool:
-    """
-    Возвращает True или False в зависисмости от того, является ли pull request или issue старым
-    :param obj_search:
-    :return:
-    """
-    url = obj_search.get("url")
-    if "pulls" in url:
-        num_days = NUM_DAYS_OLD_PULL_REQUESTS
-    elif "issues" in url:
-        num_days = NUM_DAYS_OLD_ISSUES
-    else:
-        raise ParseError("Ошибка парсинга страницы.")
-    date_diff = abs(datetime.now().date() - get_date_from_str_without_time(obj_search.get("created_at"))).days
-
-    return date_diff > num_days
+    return True
 
 
 def clarify_by_issue(obj_search: dict) -> bool:
@@ -212,3 +206,17 @@ def clarify_by_issue(obj_search: dict) -> bool:
     :return:
     """
     return not ("issue" in obj_search.get("url") and obj_search.get("pull_request"))
+
+
+def identify_affiliation(params: Params, obj_search: dict) -> bool:
+    """
+    Определить принадлежность даты интервалу времени, заданному параметрами скрипта
+    :param params:
+    :param obj_search:
+    :return:
+    """
+    return in_interval(
+            get_date_from_str_without_time(params.begin_date),
+            get_date_from_str_without_time(params.end_date),
+            get_date_from_str_without_time(obj_search.get("created_at"))
+    )

@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from typing import Optional
+from functools import reduce
 
-from sites.github import parse_pulls_from_page, parse_dev_activity_from_page, parse_issues_from_page
+from sites.github import (parse_dev_activity_from_page, select_issues,
+                          select_pull_requests)
 from structure import Params, PullRequests, Issues, ResultData
 
 
@@ -22,18 +24,17 @@ def get_pull_requests(params: Params) -> Optional[PullRequests]:
     :return:
     """
     return PullRequests(
-        parse_pulls_from_page(
-            params,
-            is_open=True,
+        reduce(
+            lambda x, y: x + y,
+            select_pull_requests(params, is_open=True)
+            ),
+        reduce(
+            lambda x, y: x + y,
+            select_pull_requests(params, is_open=False)
         ),
-        parse_pulls_from_page(
-            params,
-            is_open=False,
-        ),
-        parse_pulls_from_page(
-            params,
-            is_open=True,
-            is_old=True
+        reduce(
+            lambda x, y: x + y,
+            select_pull_requests(params, is_open=True, is_old=True)
         )
     ) if params.pull_requests else None
 
@@ -45,18 +46,17 @@ def get_issues(params: Params) -> Optional[Issues]:
     :return:
     """
     return Issues(
-        parse_issues_from_page(
-            params,
-            is_open=True,
+        reduce(
+            lambda x, y: x + y,
+            select_issues(params, is_open=True)
         ),
-        parse_issues_from_page(
-            params,
-            is_open=False,
+        reduce(
+            lambda x, y: x + y,
+            select_issues(params, is_open=False)
         ),
-        parse_issues_from_page(
-            params,
-            is_open=True,
-            is_old=True
+        reduce(
+            lambda x, y: x + y,
+            select_issues(params, is_open=True, is_old=True)
         )
     ) if params.issues else None
 
