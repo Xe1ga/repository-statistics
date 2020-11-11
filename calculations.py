@@ -24,18 +24,9 @@ def get_pull_requests(params: Params) -> Optional[PullRequests]:
     :return:
     """
     return PullRequests(
-        reduce(
-            lambda x, y: x + y,
-            select_pull_requests(params, is_open=True)
-            ),
-        reduce(
-            lambda x, y: x + y,
-            select_pull_requests(params, is_open=False)
-        ),
-        reduce(
-            lambda x, y: x + y,
-            select_pull_requests(params, is_open=True, is_old=True)
-        )
+        sum(select_pull_requests(params, is_open=True)),
+        sum(select_pull_requests(params, is_open=False)),
+        sum(select_pull_requests(params, is_open=True, is_old=True))
     ) if params.pull_requests else None
 
 
@@ -46,18 +37,9 @@ def get_issues(params: Params) -> Optional[Issues]:
     :return:
     """
     return Issues(
-        reduce(
-            lambda x, y: x + y,
-            select_issues(params, is_open=True)
-        ),
-        reduce(
-            lambda x, y: x + y,
-            select_issues(params, is_open=False)
-        ),
-        reduce(
-            lambda x, y: x + y,
-            select_issues(params, is_open=True, is_old=True)
-        )
+        sum(select_issues(params, is_open=True)),
+        sum(select_issues(params, is_open=False)),
+        sum(select_issues(params, is_open=True, is_old=True))
     ) if params.issues else None
 
 
