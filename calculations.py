@@ -6,7 +6,6 @@ from functools import reduce
 from sites.github import (parse_dev_activity_from_page, select_issues,
                           select_pull_requests)
 from structure import Params, PullRequests, Issues, ResultData
-from exceptions import TimeoutConnectionError, ConnectError, HTTPError, ParseError
 
 
 def get_dev_activity(params: Params) -> Optional[list]:
@@ -74,19 +73,3 @@ def get_result_data(params: Params) -> ResultData:
         get_pull_requests(params),
         get_issues(params)
     )
-
-
-def run(params: Params) -> ResultData:
-    """
-    Запуск вычислений
-    :param params:
-    :return:
-    """
-    try:
-        result_data = get_result_data(params)
-    except (TimeoutConnectionError, ConnectError) as err:
-        print("Проверьте подключение к сети:\n", err)
-    except (HTTPError, ParseError) as err:
-        print(err.message)
-    else:
-        return result_data
