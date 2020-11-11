@@ -8,13 +8,12 @@ repository_statistic.github
 """
 from collections import Counter
 from datetime import datetime
-
+from functools import partial
 
 from exceptions import ParseError
 from structure import Params
 from utils import get_date_from_str_without_time, in_interval, get_last_parts_url
 from httpclient import get_response_content_with_pagination
-
 
 ACCEPT = "application/vnd.github.v3+json"
 PER_PAGE = 100
@@ -22,7 +21,6 @@ NUM_DAYS_OLD_PULL_REQUESTS = 30
 NUM_DAYS_OLD_ISSUES = 14
 NUM_RECORDS = 30
 BASE_URL = "https://api.github.com"
-
 
 endpoints = {
     "limit": f"{BASE_URL}/rate_limit",
@@ -149,13 +147,20 @@ def get_map_units_for_each_pulls(params: Params, is_open: bool, is_old: bool = F
     :param is_old:
     :return:
     """
-    return(map(lambda pr: 1,
-               filter(
-                   lambda pr: identify_affiliation(params, pr) and is_old_obj_search(pr, is_old),
-                   get_response_content_with_pagination(get_request_attributes_for_pulls(params, is_open))
-               )
-               )
-           )
+    p_in_interval = partial(
+        in_interval,
+        get_date_from_str_without_time(params.begin_date),
+        get_date_from_str_without_time(params.end_date)
+    )
+
+    return (map(lambda pr: 1,
+                filter(
+                    lambda pr: (p_in_interval(get_date_from_str_without_time(pr.get("created_at")))
+                                and is_old_obj_search(pr, is_old)),
+                    get_response_content_with_pagination(get_request_attributes_for_pulls(params, is_open))
+                )
+                )
+            )
 
 
 def get_map_units_for_each_issues(params: Params, is_open: bool, is_old: bool = False) -> map:
@@ -166,15 +171,21 @@ def get_map_units_for_each_issues(params: Params, is_open: bool, is_old: bool = 
     :param is_old:
     :return:
     """
-    return(map(lambda issue: 1,
-               filter(
-                   lambda issue: (identify_affiliation(params, issue)
-                                  and is_old_obj_search(issue, is_old)
-                                  and clarify_by_issue(issue)),
-                   get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open))
-               )
-               )
-           )
+    p_in_interval = partial(
+        in_interval,
+        get_date_from_str_without_time(params.begin_date),
+        get_date_from_str_without_time(params.end_date)
+    )
+
+    return (map(lambda issue: 1,
+                filter(
+                    lambda issue: (p_in_interval(get_date_from_str_without_time(issue.get("created_at")))
+                                   and is_old_obj_search(issue, is_old)
+                                   and clarify_by_issue(issue)),
+                    get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open))
+                )
+                )
+            )
 
 
 def is_old_obj_search(obj_search: dict, is_old: bool) -> bool:
@@ -216,7 +227,7 @@ def identify_affiliation(params: Params, obj_search: dict) -> bool:
     :return:
     """
     return in_interval(
-            get_date_from_str_without_time(params.begin_date),
-            get_date_from_str_without_time(params.end_date),
-            get_date_from_str_without_time(obj_search.get("created_at"))
+        get_date_from_str_without_time(params.begin_date),
+        get_date_from_str_without_time(params.end_date),
+        get_date_from_str_without_time(obj_search.get("created_at"))
     )
