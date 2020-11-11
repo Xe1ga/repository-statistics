@@ -181,7 +181,7 @@ def get_map_units_for_each_issues(params: Params, is_open: bool, is_old: bool = 
                 filter(
                     lambda issue: (p_in_interval(get_date_from_str_without_time(issue.get("created_at")))
                                    and is_old_obj_search(issue, is_old)
-                                   and clarify_by_issue(issue)),
+                                   and is_item_an_issue(issue)),
                     get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open))
                 )
                 )
@@ -210,7 +210,7 @@ def is_old_obj_search(obj_search: dict, is_old: bool) -> bool:
     return True
 
 
-def clarify_by_issue(obj_search: dict) -> bool:
+def is_item_an_issue(obj_search: dict) -> bool:
     """
     Уточнить является issue не связанной с pull requests
     :param obj_search:
