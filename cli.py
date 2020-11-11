@@ -5,7 +5,7 @@ import click
 from exceptions import TimeoutConnectionError, ConnectError, ValidationError
 from utils import get_begin_date, get_end_date
 from structure import Params, ResultData
-from calculations import get_result_data
+from calculations import run
 from validation import get_valid_params
 
 
@@ -115,7 +115,7 @@ def main(url, api_key, begin_date, end_date, branch, dev_activity, pull_requests
     except (TimeoutConnectionError, ConnectError) as err:
         print("Проверьте подключение к сети:\n", err)
     else:
-        output_data(get_result_data(params))
+        output_data(run(params))
 
 
 if __name__ == "__main__":
