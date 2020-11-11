@@ -156,7 +156,8 @@ def get_map_units_for_each_pulls(params: Params, is_open: bool, is_old: bool = F
     return (map(lambda pr: 1,
                 filter(
                     lambda pr: (p_in_interval(get_date_from_str_without_time(pr.get("created_at")))
-                                and is_old_obj_search(pr, is_old)),
+                                and (True if not is_old else is_old_obj_search(pr.get("created_at"),
+                                                                               NUM_DAYS_OLD_PULL_REQUESTS))),
                     get_response_content_with_pagination(get_request_attributes_for_pulls(params, is_open))
                 )
                 )
@@ -176,11 +177,11 @@ def get_map_units_for_each_issues(params: Params, is_open: bool, is_old: bool = 
         get_date_from_str_without_time(params.begin_date),
         get_date_from_str_without_time(params.end_date)
     )
-
     return (map(lambda issue: 1,
                 filter(
                     lambda issue: (p_in_interval(get_date_from_str_without_time(issue.get("created_at")))
-                                   and is_old_obj_search(issue, is_old)
+                                   and (True if not is_old else is_old_obj_search(issue.get("created_at"),
+                                                                                  NUM_DAYS_OLD_ISSUES))
                                    and is_item_an_issue(issue)),
                     get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open))
                 )
@@ -188,26 +189,14 @@ def get_map_units_for_each_issues(params: Params, is_open: bool, is_old: bool = 
             )
 
 
-def is_old_obj_search(obj_search: dict, is_old: bool) -> bool:
+def is_old_obj_search(created_date: str, num_days: int) -> bool:
     """
-    Если флаг is_old установлен, то возвращает True или False в зависисмости от того,
-    является ли pull request или issue старым, иначе возвращает True
-    :param obj_search:
-    :param is_old:
-    :return:
+    Возвращает True или False в зависисмости от того, является ли pull request или issue старым
+    :param created_date: 
+    :param num_days: 
+    :return: 
     """
-    if is_old:
-        url = obj_search.get("url")
-        if "pulls" in url:
-            num_days = NUM_DAYS_OLD_PULL_REQUESTS
-        elif "issues" in url:
-            num_days = NUM_DAYS_OLD_ISSUES
-        else:
-            raise ParseError("Ошибка парсинга страницы.")
-        date_diff = abs(datetime.now().date() - get_date_from_str_without_time(obj_search.get("created_at"))).days
-        return date_diff > num_days
-
-    return True
+    return abs(datetime.now().date() - get_date_from_str_without_time(created_date)).days > num_days
 
 
 def is_item_an_issue(obj_search: dict) -> bool:
