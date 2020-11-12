@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from typing import Optional
-from functools import reduce
 
 from sites.github import (parse_dev_activity_from_page, get_map_units_for_each_issues,
                           get_map_units_for_each_pulls)

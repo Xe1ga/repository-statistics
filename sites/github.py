@@ -151,12 +151,15 @@ def get_map_units_for_each_pulls(params: Params, is_open: bool, is_old: bool = F
         get_date_from_str_without_time(params.begin_date),
         get_date_from_str_without_time(params.end_date)
     )
+    is_old_pulls = partial(
+        is_old_obj_search,
+        NUM_DAYS_OLD_PULL_REQUESTS
+    )
 
     return (map(lambda pr: 1,
                 filter(
                     lambda pr: (p_in_interval(get_date_from_str_without_time(pr.get("created_at")))
-                                and (True if not is_old else is_old_obj_search(pr.get("created_at"),
-                                                                               NUM_DAYS_OLD_PULL_REQUESTS))),
+                                and (is_old_pulls(pr.get("created_at")) if is_old else True)),
                     get_response_content_with_pagination(get_request_attributes_for_pulls(params, is_open))
                 )
                 )
@@ -176,12 +179,15 @@ def get_map_units_for_each_issues(params: Params, is_open: bool, is_old: bool = 
         get_date_from_str_without_time(params.begin_date),
         get_date_from_str_without_time(params.end_date)
     )
+    is_old_issue = partial(
+        is_old_obj_search,
+        NUM_DAYS_OLD_ISSUES
+    )
     return (map(lambda issue: 1,
                 filter(
-                    lambda issue: (p_in_interval(get_date_from_str_without_time(issue.get("created_at")))
-                                   and (True if not is_old else is_old_obj_search(issue.get("created_at"),
-                                                                                  NUM_DAYS_OLD_ISSUES))
-                                   and is_item_an_issue(issue)),
+                    lambda issue: (is_item_an_issue(issue)
+                                   and p_in_interval(get_date_from_str_without_time(issue.get("created_at")))
+                                   and (is_old_issue(issue.get("created_at")) if is_old else True)),
                     get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open))
                 )
                 )
