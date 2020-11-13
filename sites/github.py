@@ -137,17 +137,13 @@ def get_request_attributes_for_issues(params: Params, is_open: bool) -> tuple:
     return url, parameters, headers
 
 
-def parse_dev_activity_from_page(params: Params) -> list:
+def count_commits_by_author(params: Params) -> list:
     """
-    Парсинг данных о статистике коммитов в разрезе разработчиков на GitHub.
+    Возвращает список кортежей со статистикой по типу [(логин автора, количество коммитов), ...]
     :param params:
     :return:
     """
-    result = []
-    for commit in get_response_content_with_pagination(get_request_attributes_for_commits(params)):
-        if commit.get("author"):
-            result.append(commit.get("author").get("login"))
-    return Counter(result).most_common(NUM_RECORDS)
+    return Counter(map(lambda c: c.get("author").get("login"), fetch_login(params))).most_common(NUM_RECORDS)
 
 
 def count_pulls(params: Params, is_open: bool, is_old: bool = False) -> int:
@@ -170,6 +166,18 @@ def count_issues(params: Params, is_open: bool, is_old: bool = False) -> int:
     :return:
     """
     return sum(map(lambda pr: 1, fetch_issues(params, is_open, is_old)))
+
+
+def fetch_login(params: Params) -> Iterator:
+    """
+    Получает список логинов авторов коммитов
+    :param params:
+    :return:
+    """
+    return filter(
+        lambda c: bool(c.get("author")),
+        get_response_content_with_pagination(get_request_attributes_for_commits(params))
+    )
 
 
 def fetch_pulls(params: Params, is_open: bool, is_old: bool) -> Iterator:

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from typing import Optional
 
-from sites.github import parse_dev_activity_from_page, count_issues, count_pulls
+from sites.github import count_commits_by_author, count_issues, count_pulls
 from structure import Params, PullRequests, Issues, ResultData
 
 
@@ -12,7 +12,7 @@ def get_dev_activity(params: Params) -> Optional[list]:
     :param params:
     :return:
     """
-    return parse_dev_activity_from_page(params) if params.dev_activity else None
+    return count_commits_by_author(params) if params.dev_activity else None
 
 
 def get_pull_requests(params: Params) -> Optional[PullRequests]:
