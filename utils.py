@@ -83,3 +83,13 @@ def get_last_parts_url(url: str, num_parts: int) -> str:
     :return:
     """
     return "/".join(url.split("/")[-num_parts:])
+
+
+def to_compare_with_current_date(num_days: int, created_date: str) -> bool:
+    """
+    Возвращает True или False в зависисмости от того, является ли pull request или issue старым
+    :param created_date:
+    :param num_days:
+    :return:
+    """
+    return abs(datetime.now().date() - get_date_from_str_without_time(created_date)).days > num_days

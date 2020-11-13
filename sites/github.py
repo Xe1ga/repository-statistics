@@ -11,7 +11,7 @@ from datetime import datetime
 from functools import partial
 
 from structure import Params
-from utils import get_date_from_str_without_time, in_interval, get_last_parts_url
+from utils import get_date_from_str_without_time, in_interval, get_last_parts_url, to_compare_with_current_date
 from httpclient import get_response_content_with_pagination
 
 ACCEPT = "application/vnd.github.v3+json"
@@ -29,6 +29,18 @@ endpoints = {
     "issues": lambda url: f"{BASE_URL}/repos/{get_last_parts_url(url, 2)}/issues"
 
 }
+
+
+_is_create_date_gt_required_pulls = partial(
+        to_compare_with_current_date,
+        NUM_DAYS_OLD_PULL_REQUESTS
+    )
+
+
+_is_create_date_gt_required_issues = partial(
+        to_compare_with_current_date,
+        NUM_DAYS_OLD_ISSUES
+    )
 
 
 def get_headers(api_key: str) -> dict:
@@ -138,7 +150,7 @@ def parse_dev_activity_from_page(params: Params) -> list:
     return Counter(result).most_common(NUM_RECORDS)
 
 
-def get_map_units_for_each_pulls(params: Params, is_open: bool, is_old: bool = False) -> map:
+def count_pulls(params: Params, is_open: bool, is_old: bool = False) -> map:
     """
     Получает объект map - итератор из единиц для каждого pull request, удовлетворяющего условиям отбора
     :param params:
@@ -151,22 +163,19 @@ def get_map_units_for_each_pulls(params: Params, is_open: bool, is_old: bool = F
         get_date_from_str_without_time(params.begin_date),
         get_date_from_str_without_time(params.end_date)
     )
-    is_old_pulls = partial(
-        is_old_obj_search,
-        NUM_DAYS_OLD_PULL_REQUESTS
-    )
 
-    return (map(lambda pr: 1,
+    return sum((map(lambda pr: 1,
                 filter(
                     lambda pr: (_in_interval(get_date_from_str_without_time(pr.get("created_at")))
-                                and (is_old_pulls(pr.get("created_at")) if is_old else True)),
+                                and (_is_create_date_gt_required_pulls(pr.get("created_at")) if is_old else True)),
                     get_response_content_with_pagination(get_request_attributes_for_pulls(params, is_open))
                 )
                 )
             )
+    )
 
 
-def get_map_units_for_each_issues(params: Params, is_open: bool, is_old: bool = False) -> map:
+def count_issues(params: Params, is_open: bool, is_old: bool = False) -> map:
     """
     Отбирает из всех pull requests, удовлетворяющие параметрам скрипта
     :param params:
@@ -179,29 +188,17 @@ def get_map_units_for_each_issues(params: Params, is_open: bool, is_old: bool = 
         get_date_from_str_without_time(params.begin_date),
         get_date_from_str_without_time(params.end_date)
     )
-    is_old_issue = partial(
-        is_old_obj_search,
-        NUM_DAYS_OLD_ISSUES
-    )
-    return (map(lambda issue: 1,
+
+    return sum((map(lambda issue: 1,
                 filter(
                     lambda issue: (is_item_an_issue(issue)
                                    and _in_interval(get_date_from_str_without_time(issue.get("created_at")))
-                                   and (is_old_issue(issue.get("created_at")) if is_old else True)),
+                                   and (_is_create_date_gt_required_issues(issue.get("created_at")) if is_old else True)),
                     get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open))
                 )
                 )
             )
-
-
-def is_old_obj_search(num_days: int, created_date: str) -> bool:
-    """
-    Возвращает True или False в зависисмости от того, является ли pull request или issue старым
-    :param created_date: 
-    :param num_days: 
-    :return: 
-    """
-    return abs(datetime.now().date() - get_date_from_str_without_time(created_date)).days > num_days
+    )
 
 
 def is_item_an_issue(obj_search: dict) -> bool:
