@@ -7,7 +7,7 @@ repository_statistic.github
 Модуль содержит специфичные для github функции
 """
 from collections import Counter
-from datetime import datetime
+from collections.abc import Iterator
 from functools import partial
 
 from structure import Params
@@ -150,7 +150,7 @@ def parse_dev_activity_from_page(params: Params) -> list:
     return Counter(result).most_common(NUM_RECORDS)
 
 
-def count_pulls(params: Params, is_open: bool, is_old: bool = False) -> map:
+def count_pulls(params: Params, is_open: bool, is_old: bool = False) -> int:
     """
     Возвращает количество pull request
     :param params:
@@ -172,26 +172,45 @@ def count_issues(params: Params, is_open: bool, is_old: bool = False) -> int:
     return sum(map(lambda pr: 1, fetch_issues(params, is_open, is_old)))
 
 
-def fetch_pulls(params: Params, is_open: bool, is_old: bool) -> dict:
+def fetch_pulls(params: Params, is_open: bool, is_old: bool) -> Iterator:
     """
-    Получает pull requests
+    Получает итератор по pull requests
     :param params:
     :param is_open:
     :param is_old:
     :return:
     """
-    pass
+    _in_interval = partial(
+        in_interval,
+        get_date_from_str_without_time(params.begin_date),
+        get_date_from_str_without_time(params.end_date)
+    )
+    return filter(
+        lambda pr: (_in_interval(get_date_from_str_without_time(pr.get("created_at")))
+                    and (_is_create_date_gt_required_pulls(pr.get("created_at")) if is_old else True)),
+        get_response_content_with_pagination(get_request_attributes_for_pulls(params, is_open))
+    )
 
 
-def fetch_issues(params: Params, is_open: bool, is_old: bool) -> dict:
+def fetch_issues(params: Params, is_open: bool, is_old: bool) -> Iterator:
     """
-    Получает pull requests
+    Получает итератор по issues
     :param params:
     :param is_open:
     :param is_old:
     :return:
     """
-    pass
+    _in_interval = partial(
+        in_interval,
+        get_date_from_str_without_time(params.begin_date),
+        get_date_from_str_without_time(params.end_date)
+    )
+    return filter(
+        lambda issue: (is_item_an_issue(issue)
+                       and _in_interval(get_date_from_str_without_time(issue.get("created_at")))
+                       and (_is_create_date_gt_required_issues(issue.get("created_at")) if is_old else True)),
+        get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open))
+    )
 
 
 def is_item_an_issue(obj_search: dict) -> bool:
