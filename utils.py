@@ -87,7 +87,7 @@ def get_last_parts_url(url: str, num_parts: int) -> str:
 
 def to_compare_with_current_date(num_days: int, created_date: str) -> bool:
     """
-    Возвращает True или False в зависисмости от того, является ли pull request или issue старым
+    Возвращает True, если количество дней от текущей даты превосходит заданное количество дней, иначе False
     :param created_date:
     :param num_days:
     :return:

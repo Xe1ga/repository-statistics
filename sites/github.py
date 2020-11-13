@@ -152,53 +152,46 @@ def parse_dev_activity_from_page(params: Params) -> list:
 
 def count_pulls(params: Params, is_open: bool, is_old: bool = False) -> map:
     """
-    Получает объект map - итератор из единиц для каждого pull request, удовлетворяющего условиям отбора
+    Возвращает количество pull request
     :param params:
     :param is_open:
     :param is_old:
     :return:
     """
-    _in_interval = partial(
-        in_interval,
-        get_date_from_str_without_time(params.begin_date),
-        get_date_from_str_without_time(params.end_date)
-    )
-
-    return sum((map(lambda pr: 1,
-                filter(
-                    lambda pr: (_in_interval(get_date_from_str_without_time(pr.get("created_at")))
-                                and (_is_create_date_gt_required_pulls(pr.get("created_at")) if is_old else True)),
-                    get_response_content_with_pagination(get_request_attributes_for_pulls(params, is_open))
-                )
-                )
-            )
-    )
+    return sum(map(lambda pr: 1, fetch_pulls(params, is_open, is_old)))
 
 
-def count_issues(params: Params, is_open: bool, is_old: bool = False) -> map:
+def count_issues(params: Params, is_open: bool, is_old: bool = False) -> int:
     """
-    Отбирает из всех pull requests, удовлетворяющие параметрам скрипта
+    Возвращает количество issues
     :param params:
     :param is_open:
     :param is_old:
     :return:
     """
-    _in_interval = partial(
-        in_interval,
-        get_date_from_str_without_time(params.begin_date),
-        get_date_from_str_without_time(params.end_date)
-    )
+    return sum(map(lambda pr: 1, fetch_issues(params, is_open, is_old)))
 
-    return sum((map(lambda issue: 1,
-                filter(
-                    lambda issue: (is_item_an_issue(issue)
-                                   and _in_interval(get_date_from_str_without_time(issue.get("created_at")))
-                                   and (_is_create_date_gt_required_issues(issue.get("created_at")) if is_old else True)),
-                    get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open))
-                )
-                )
-            )
-    )
+
+def fetch_pulls(params: Params, is_open: bool, is_old: bool) -> dict:
+    """
+    Получает pull requests
+    :param params:
+    :param is_open:
+    :param is_old:
+    :return:
+    """
+    pass
+
+
+def fetch_issues(params: Params, is_open: bool, is_old: bool) -> dict:
+    """
+    Получает pull requests
+    :param params:
+    :param is_open:
+    :param is_old:
+    :return:
+    """
+    pass
 
 
 def is_item_an_issue(obj_search: dict) -> bool:
