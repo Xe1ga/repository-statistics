@@ -16,7 +16,7 @@ class Error(Exception):
         self.message = message
 
 
-class TimeoutError(Error):
+class TimeoutConnectionError(Error):
     """
     Исключение, возникающее при превышении таймаута установки соединения с сервером
     или превышении таймаут ожидания ответа от сервера
@@ -24,7 +24,7 @@ class TimeoutError(Error):
     pass
 
 
-class ConnectionError(Error):
+class ConnectError(Error):
     """
     Исключение, возникающее при проблемах соединения с сервером
     """
@@ -41,12 +41,5 @@ class HTTPError(Error):
 class ValidationError(Error):
     """
     Исключение, возникающее при ошибках валидации
-    """
-    pass
-
-
-class ParseError(Error):
-    """
-    Исключение, возникающее при ошибках парсинга страницы
     """
     pass

@@ -7,19 +7,40 @@ repository_statistic.github
 Модуль содержит специфичные для github функции
 """
 from collections import Counter
-from datetime import datetime
+from collections.abc import Iterator
+from functools import partial
 
-import exceptions
-
-from repository_statistics import get_base_api_url
 from structure import Params
-from utils import get_date_from_str_without_time, in_interval
-
+from utils import get_date_from_str_without_time, in_interval, get_last_parts_url, to_compare_with_current_date
+from httpclient import get_response_content_with_pagination
 
 ACCEPT = "application/vnd.github.v3+json"
 PER_PAGE = 100
 NUM_DAYS_OLD_PULL_REQUESTS = 30
 NUM_DAYS_OLD_ISSUES = 14
+NUM_RECORDS = 30
+BASE_URL = "https://api.github.com"
+
+endpoints = {
+    "limit": f"{BASE_URL}/rate_limit",
+    "branch": lambda url, branch: f"{BASE_URL}/repos/{get_last_parts_url(url, 2)}/branches/{branch}",
+    "commits": lambda url: f"{BASE_URL}/repos/{get_last_parts_url(url, 2)}/commits",
+    "pulls": lambda url: f"{BASE_URL}/repos/{get_last_parts_url(url, 2)}/pulls",
+    "issues": lambda url: f"{BASE_URL}/repos/{get_last_parts_url(url, 2)}/issues"
+
+}
+
+
+_is_create_date_gt_required_pulls = partial(
+        to_compare_with_current_date,
+        NUM_DAYS_OLD_PULL_REQUESTS
+    )
+
+
+_is_create_date_gt_required_issues = partial(
+        to_compare_with_current_date,
+        NUM_DAYS_OLD_ISSUES
+    )
 
 
 def get_headers(api_key: str) -> dict:
@@ -29,15 +50,6 @@ def get_headers(api_key: str) -> dict:
     :return:
     """
     return {'Accept': ACCEPT, 'Authorization': f'Token {api_key}'}
-
-
-def get_api_url_limit(url: str) -> str:
-    """
-    Получить endpoint api ограничения скорости
-    :param url:
-    :return:
-    """
-    return f"{get_base_api_url(url)}/rate_limit"
 
 
 def get_url_parameters_for_commits(params: Params) -> dict:
@@ -86,62 +98,130 @@ def get_url_parameters_for_issues(is_open: bool) -> dict:
     return url_parameters
 
 
-def parse_dev_activity_from_page(commits: list) -> list:
+def get_request_attributes_for_commits(params: Params) -> tuple:
     """
-    Парсинг данных о статистике коммитов в разрезе разработчиков на GitHub.
-    :param commits:
+    Получает список словарей, содержащий информацию о коммитах
+    :param params:
     :return:
     """
-    result = []
-
-    for commit in commits:
-        if commit.get("author"):
-            result.append(commit.get("author").get("login"))
-
-    return Counter(result).most_common(30)
+    url = endpoints["commits"](params.url)
+    parameters = get_url_parameters_for_commits(params)
+    headers = get_headers(params.api_key)
+    return url, parameters, headers
 
 
-def parse_obj_search_from_page(params: Params, obj_search_list: list, is_old: bool = False) -> int:
+def get_request_attributes_for_pulls(params: Params, is_open: bool) -> tuple:
     """
-    Парсинг данных о статистике pull requests и issues со страницы GitHub.
+    Формирует запрос на получение данных и отправляет их на парсинг.
+    Получает статистику pull requests.
     :param params:
-    :param obj_search_list:
+    :param is_open:
+    :return:
+    """
+    url = endpoints["pulls"](params.url)
+    parameters = get_url_parameters_for_pull_requests(params, is_open)
+    headers = get_headers(params.api_key)
+    return url, parameters, headers
+
+
+def get_request_attributes_for_issues(params: Params, is_open: bool) -> tuple:
+    """
+    Формирует запрос на получение данных и отправляет их на парсинг.
+    :param params:
+    :param is_open:
+    :return:
+    """
+    url = endpoints["issues"](params.url)
+    parameters = get_url_parameters_for_issues(is_open)
+    headers = get_headers(params.api_key)
+    return url, parameters, headers
+
+
+def count_commits_by_author(params: Params) -> list:
+    """
+    Возвращает список кортежей со статистикой по типу [(логин автора, количество коммитов), ...]
+    :param params:
+    :return:
+    """
+    return Counter(map(lambda c: c.get("author").get("login"), fetch_login(params))).most_common(NUM_RECORDS)
+
+
+def count_pulls(params: Params, is_open: bool, is_old: bool = False) -> int:
+    """
+    Возвращает количество pull request
+    :param params:
+    :param is_open:
     :param is_old:
     :return:
     """
-    result = 0
-
-    for obj_search in obj_search_list:
-        if obj_search.get("created_at"):
-            if in_interval(
-                    get_date_from_str_without_time(params.begin_date),
-                    get_date_from_str_without_time(params.end_date),
-                    get_date_from_str_without_time(obj_search.get("created_at"))
-            ) and clarify_by_issue(obj_search) and (True if not is_old else is_old_obj_search(obj_search)):
-                result += 1
-
-    return result
+    return sum(map(lambda pr: 1, fetch_pulls(params, is_open, is_old)))
 
 
-def is_old_obj_search(obj_search: dict) -> bool:
+def count_issues(params: Params, is_open: bool, is_old: bool = False) -> int:
     """
-    Возвращает True или False в зависисмости от того, является ли pull request или issue старым
-    :param obj_search:
+    Возвращает количество issues
+    :param params:
+    :param is_open:
+    :param is_old:
     :return:
     """
-    url = obj_search.get("url")
-    if "pulls" in url:
-        num_days = NUM_DAYS_OLD_PULL_REQUESTS
-    elif "issues" in url:
-        num_days = NUM_DAYS_OLD_ISSUES
-    else:
-        raise exceptions.ParseError("Ошибка парсинга страницы.")
-    date_diff = abs(datetime.now().date() - get_date_from_str_without_time(obj_search.get("created_at"))).days
-
-    return date_diff > num_days
+    return sum(map(lambda pr: 1, fetch_issues(params, is_open, is_old)))
 
 
-def clarify_by_issue(obj_search: dict) -> bool:
+def fetch_login(params: Params) -> Iterator:
+    """
+    Получает список логинов авторов коммитов
+    :param params:
+    :return:
+    """
+    return filter(
+        lambda c: bool(c.get("author")),
+        get_response_content_with_pagination(get_request_attributes_for_commits(params))
+    )
+
+
+def fetch_pulls(params: Params, is_open: bool, is_old: bool) -> Iterator:
+    """
+    Получает итератор по pull requests
+    :param params:
+    :param is_open:
+    :param is_old:
+    :return:
+    """
+    _in_interval = partial(
+        in_interval,
+        get_date_from_str_without_time(params.begin_date),
+        get_date_from_str_without_time(params.end_date)
+    )
+    return filter(
+        lambda pr: (_in_interval(get_date_from_str_without_time(pr.get("created_at")))
+                    and (_is_create_date_gt_required_pulls(pr.get("created_at")) if is_old else True)),
+        get_response_content_with_pagination(get_request_attributes_for_pulls(params, is_open))
+    )
+
+
+def fetch_issues(params: Params, is_open: bool, is_old: bool) -> Iterator:
+    """
+    Получает итератор по issues
+    :param params:
+    :param is_open:
+    :param is_old:
+    :return:
+    """
+    _in_interval = partial(
+        in_interval,
+        get_date_from_str_without_time(params.begin_date),
+        get_date_from_str_without_time(params.end_date)
+    )
+    return filter(
+        lambda issue: (is_item_an_issue(issue)
+                       and _in_interval(get_date_from_str_without_time(issue.get("created_at")))
+                       and (_is_create_date_gt_required_issues(issue.get("created_at")) if is_old else True)),
+        get_response_content_with_pagination(get_request_attributes_for_issues(params, is_open))
+    )
+
+
+def is_item_an_issue(obj_search: dict) -> bool:
     """
     Уточнить является issue не связанной с pull requests
     :param obj_search:
