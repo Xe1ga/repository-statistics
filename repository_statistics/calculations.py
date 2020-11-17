@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 from typing import Optional
 
-from sites.github import count_commits_by_author, count_issues, count_pulls
-from structure import Params, PullRequests, Issues, ResultData
+from repository_statistics.sites.github import count_commits_by_author, count_issues, count_pulls
+from repository_statistics.structure import Params, PullRequests, Issues, ResultData
 
 
 def get_dev_activity(params: Params) -> Optional[list]:

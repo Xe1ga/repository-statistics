@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 import click
 
-from exceptions import TimeoutConnectionError, ConnectError, ValidationError, HTTPError
-from utils import get_begin_date, get_end_date
-from structure import Params, ResultData
-from calculations import get_result_data
-from validation import get_valid_params
+from repository_statistics.exceptions import TimeoutConnectionError, ConnectError, ValidationError, HTTPError
+from repository_statistics.utils import get_begin_date, get_end_date
+from repository_statistics.structure import Params, ResultData
+from repository_statistics.calculations import get_result_data
+from repository_statistics.validation import get_valid_params
 
 
 @get_valid_params

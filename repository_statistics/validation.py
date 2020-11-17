@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from sites.github import endpoints, get_headers
-from exceptions import HTTPError, ValidationError
-from utils import get_date_from_str
-from structure import Params
-from httpclient import get_response_headers_data
+from repository_statistics.sites.github import endpoints, get_headers
+from repository_statistics.exceptions import HTTPError, ValidationError
+from repository_statistics.utils import get_date_from_str
+from repository_statistics.structure import Params
+from repository_statistics.httpclient import get_response_headers_data
 
 
 def is_url(url: str) -> bool:

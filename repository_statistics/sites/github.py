@@ -10,9 +10,9 @@ from collections import Counter
 from collections.abc import Iterator
 from functools import partial
 
-from structure import Params
-from utils import get_date_from_str_without_time, in_interval, get_last_parts_url, to_compare_with_current_date
-from httpclient import get_response_content_with_pagination
+from repository_statistics.structure import Params
+from repository_statistics.utils import get_date_from_str_without_time, in_interval, get_last_parts_url, to_compare_with_current_date
+from repository_statistics.httpclient import get_response_content_with_pagination
 
 ACCEPT = "application/vnd.github.v3+json"
 PER_PAGE = 100
