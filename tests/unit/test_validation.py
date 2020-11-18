@@ -9,9 +9,7 @@ import repository_statistics.validation
     pytest.param('01.13.2020', id='invalid range'),
     pytest.param('2020.02.10', id='reverse order'),
     pytest.param('05/10/1985', id='invalid separator'),
-    pytest.param('ррррр55555', id='arbitrary string'),
-    pytest.param(10051978, id='not string'),
-    pytest.param(datetime.now(), id='object')])
+    pytest.param('ррррр55555', id='arbitrary string')])
 def test_is_date_false(date_to_check):
     """Функция is_date() должна сгенерироваь исключение на неверно указанный параметр даты"""
     assert repository_statistics.validation.is_date(date_to_check) is False
