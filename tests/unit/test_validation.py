@@ -37,7 +37,7 @@ def test_is_date_true(date_to_check):
 @patch('repository_statistics.validation.is_date')
 @patch('repository_statistics.validation.is_branch')
 @pytest.mark.parametrize('begin_date, end_date', parameters)
-def test_date_in_get_validation_errors(is_url, is_api_key, is_date, is_branch, begin_date, end_date):
+def test_date_in_get_validation_errors_empty(is_url, is_api_key, is_date, is_branch, begin_date, end_date):
     """Тестируем валидацию параметров begin_date и end_date"""
     is_url.configure_mock(return_value=True)
     is_api_key.configure_mock(return_value=True)
@@ -51,3 +51,24 @@ def test_date_in_get_validation_errors(is_url, is_api_key, is_date, is_branch, b
         branch=None
     )
     assert not errors
+
+
+@patch('repository_statistics.validation.is_url')
+@patch('repository_statistics.validation.is_api_key')
+@patch('repository_statistics.validation.is_date')
+@patch('repository_statistics.validation.is_branch')
+@pytest.mark.parametrize('begin_date, end_date', [('10.01.2020', '01.01.2020')])
+def test_date_in_get_validation_errors_not_empty(is_url, is_api_key, is_date, is_branch, begin_date, end_date):
+    """Тестируем валидацию некорректных параметров begin_date и end_date"""
+    is_url.configure_mock(return_value=True)
+    is_api_key.configure_mock(return_value=True)
+    is_date.configure_mock(return_value=True)
+    is_branch.configure_mock(return_value=True)
+    errors = validation.get_validation_errors(
+        url=None,
+        api_key=None,
+        begin_date=begin_date,
+        end_date=end_date,
+        branch=None
+    )
+    assert bool(errors)

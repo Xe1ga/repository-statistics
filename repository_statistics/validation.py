@@ -82,6 +82,10 @@ def get_validation_errors(**params) -> list:
     if params["end_date"] and not is_date(params["end_date"]):
         errors.append(f'Неккорректно задан параметр даты конца периода, {params["end_date"]}.')
 
+    if (params["begin_date"] and params["end_date"] and is_date(params["begin_date"]) and is_date(params["end_date"])
+            and get_date_from_str(params["begin_date"]) > get_date_from_str(params["end_date"])):
+        errors.append('Дата начала периода больше даты конца периода')
+
     if not is_branch(params["url"], params["branch"]):
         errors.append(f'Ветки репозитория с указанным именем {params["branch"]} не существует.')
 
