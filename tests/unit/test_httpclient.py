@@ -1,9 +1,12 @@
 import pytest
+import requests
 
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
-from repository_statistics.httpclient import get_response_content_with_pagination
+from repository_statistics.httpclient import get_response_content_with_pagination, _get_response, requests
 from repository_statistics.structure import ResponseData
+from repository_statistics.exceptions import TimeoutConnectionError, ConnectError, HTTPError
+
 
 request_attributes = [
     ('https://good/url',
@@ -54,3 +57,32 @@ def test_get_response_content_with_pagination(url, parameters, headers, result):
             assert next(data) == result
             with pytest.raises(StopIteration):
                 next(data)
+
+
+@pytest.mark.parametrize('url, method, parameters, headers', request_attributes_with_method)
+@patch.object(requests, 'head', side_effect=[TimeoutConnectionError(""), ConnectError(""), HTTPError("")])
+@patch.object(requests, 'get', side_effect=[TimeoutConnectionError(""), ConnectError(""), HTTPError("")])
+def test_get_response_err(mock_requests_get, mock_requests_head, url, method, parameters, headers):
+    with pytest.raises(TimeoutConnectionError):
+        _get_response(url, method, parameters, headers)
+    with pytest.raises(ConnectError):
+        _get_response(url, method, parameters, headers)
+    with pytest.raises(HTTPError):
+        _get_response(url, method, parameters, headers)
+
+
+def not_raise_exception():
+    pass
+
+
+@pytest.mark.parametrize('url, method, parameters, headers', request_attributes_with_method)
+@patch.object(requests, 'head')
+@patch.object(requests, 'get')
+def test_get_response(mock_requests_get, mock_requests_head, url, method, parameters, headers):
+    response_mock = Mock(status_code=200, json={"created_at": "date", "author": {"login": "max-ott"}})
+    # response_mock.status_code = 200
+    # response_mock.json.return_value = {"created_at": "date", "author": {"login": "max-ott"}}
+    response_mock.raise_for_status.side_effect = not_raise_exception
+    getattr(requests, method).side_effect = response_mock
+    response_json = _get_response(url, method, parameters, headers).json
+    assert response_json == {"created_at": "date", "author": {"login": "max-ott"}}
