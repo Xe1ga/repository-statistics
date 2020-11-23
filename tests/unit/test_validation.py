@@ -23,7 +23,7 @@ parameters = [
     pytest.param('ррррр55555', id='arbitrary string')])
 def test_is_date_false(date_to_check):
     """Функция is_date() должна вернуть false на неверно указанный параметр даты"""
-    assert not validation.is_date(date_to_check)
+    assert validation.is_date(date_to_check) is False
 
 
 @pytest.mark.parametrize('date_to_check', [
@@ -31,7 +31,7 @@ def test_is_date_false(date_to_check):
     pytest.param('22.12.2055', id='good date ahead')])
 def test_is_date_true(date_to_check):
     """Функция is_date() должна вернуть True на корректно указанный параметр даты"""
-    assert validation.is_date(date_to_check)
+    assert validation.is_date(date_to_check) is True
 
 
 @patch('repository_statistics.validation.is_url')
