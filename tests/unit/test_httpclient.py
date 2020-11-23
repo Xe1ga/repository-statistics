@@ -73,25 +73,19 @@ def test_get_response_err(mock_requests_get, mock_requests_head, url, method, pa
 @patch.object(requests, 'head', return_value=Mock(status_code=404))
 @patch.object(requests, 'get', return_value=Mock(status_code=404))
 def test_get_response_http_err(mock_requests_get, mock_requests_head, url, method, parameters, headers):
-    # response_mock = Mock(status_code=404)
-    # response_mock.raise_for_status.side_effect = requests.exceptions.HTTPError()
-    # getattr(requests, method).side_effect = response_mock
-    mock_requests_get.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError()
-    mock_requests_head.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError()
+    # mock_requests_get.response.status_code = 404
+    # mock_requests_head.response.status_code = 404
+    mock_requests_get.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError
+    mock_requests_head.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError
+    mock_requests_get.return_value.raise_for_status.side_effect.response.status_code = 404
+    mock_requests_head.return_value.raise_for_status.side_effect.response.status_code = 404
     with pytest.raises(HTTPError):
         _get_response(url, method, parameters, headers)
 
 
-def not_raise_exception():
-    pass
-
-
 @pytest.mark.parametrize('url, method, parameters, headers', request_attributes_with_method)
-@patch.object(requests, 'head')
-@patch.object(requests, 'get')
+@patch.object(requests, 'head', return_value=Mock(status_code=200, json={"created_at": "date", "author": {"login": "max-ott"}}))
+@patch.object(requests, 'get', return_value=Mock(status_code=200, json={"created_at": "date", "author": {"login": "max-ott"}}))
 def test_get_response(mock_requests_get, mock_requests_head, url, method, parameters, headers):
-    response_mock = Mock(status_code=200, json={"created_at": "date", "author": {"login": "max-ott"}})
-    response_mock.raise_for_status.side_effect = not_raise_exception
-    getattr(requests, method).side_effect = response_mock
-    response_json = _get_response(url, method, parameters, headers).json
-    assert response_json == {"created_at": "date", "author": {"login": "max-ott"}}
+    response = _get_response(url, method, parameters, headers)
+    assert response.json == {"created_at": "date", "author": {"login": "max-ott"}}
