@@ -14,7 +14,8 @@ def is_url(url: str) -> bool:
     :return:
     """
     try:
-        return get_response_headers_data(url).status_code == 200
+        response_data = get_response_headers_data(url)
+        return response_data.status_code == 200
     except HTTPError:
         return False
 

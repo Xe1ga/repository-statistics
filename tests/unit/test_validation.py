@@ -3,6 +3,8 @@ import pytest
 from unittest.mock import patch
 
 from repository_statistics import validation
+from repository_statistics.exceptions import HTTPError
+from repository_statistics.structure import HeadersData
 
 
 parameters = [
@@ -72,3 +74,18 @@ def test_date_in_get_validation_errors_not_empty(is_url, is_api_key, is_date, is
         branch=None
     )
     assert bool(errors)
+
+
+def switch_side_effect(url):
+    if url == "bad":
+        raise HTTPError(message="Bad url")
+    if url == "good":
+        return HeadersData(links=None, rate_limit_reset=None, rate_limit_remaining=None, status_code=200)
+    return HeadersData(links=None, rate_limit_reset=None, rate_limit_remaining=None, status_code=400)
+
+
+@pytest.mark.parametrize('test_url, validation_result', [('bad', False), ('good', True), ('http://', False)])
+def test_is_url(test_url, validation_result):
+    with patch('repository_statistics.validation.get_response_headers_data') as mock_get_response_headers_data:
+        mock_get_response_headers_data.side_effect = switch_side_effect
+        assert validation.is_url(test_url) == validation_result
