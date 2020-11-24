@@ -1,5 +1,4 @@
 import pytest
-import requests
 
 from unittest.mock import patch, Mock
 
@@ -84,8 +83,10 @@ def test_get_response_http_err(mock_requests_get, mock_requests_head, url, metho
 
 
 @pytest.mark.parametrize('url, method, parameters, headers', request_attributes_with_method)
-@patch.object(requests, 'head', return_value=Mock(status_code=200, json={"created_at": "date", "author": {"login": "max-ott"}}))
-@patch.object(requests, 'get', return_value=Mock(status_code=200, json={"created_at": "date", "author": {"login": "max-ott"}}))
+@patch.object(requests, 'head', return_value=Mock(status_code=200,
+                                                  json={"created_at": "date", "author": {"login": "max-ott"}}))
+@patch.object(requests, 'get', return_value=Mock(status_code=200,
+                                                 json={"created_at": "date", "author": {"login": "max-ott"}}))
 def test_get_response(mock_requests_get, mock_requests_head, url, method, parameters, headers):
     response = _get_response(url, method, parameters, headers)
     assert response.json == {"created_at": "date", "author": {"login": "max-ott"}}
