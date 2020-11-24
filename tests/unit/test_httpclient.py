@@ -69,7 +69,7 @@ def test_get_response_content_with_pagination(url, parameters, headers):
 @pytest.mark.parametrize('url, method, parameters, headers', request_attributes_with_method)
 @patch.object(requests, 'head', side_effect=[requests.exceptions.Timeout(), requests.exceptions.ConnectionError()])
 @patch.object(requests, 'get', side_effect=[requests.exceptions.Timeout(), requests.exceptions.ConnectionError()])
-def test_get_response_err(mock_requests_get, mock_requests_head, url, method, parameters, headers):
+def test_get_response_timeout_connect_exception(mock_requests_get, mock_requests_head, url, method, parameters, headers):
     with pytest.raises(TimeoutConnectionError):
         _get_response(url, method, parameters, headers)
     with pytest.raises(ConnectError):
@@ -79,7 +79,7 @@ def test_get_response_err(mock_requests_get, mock_requests_head, url, method, pa
 @pytest.mark.parametrize('url, method, parameters, headers', request_attributes_with_method)
 @patch.object(requests, 'head', return_value=Mock(status_code=404))
 @patch.object(requests, 'get', return_value=Mock(status_code=404))
-def test_get_response_http_err(mock_requests_get, mock_requests_head, url, method, parameters, headers):
+def test_get_response_http_exception(mock_requests_get, mock_requests_head, url, method, parameters, headers):
     # mock_requests_get.response.status_code = 404
     # mock_requests_head.response.status_code = 404
     mock_requests_get.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError
@@ -102,6 +102,15 @@ def test_get_response_200_ok(mock_requests_get, mock_requests_head, url, method,
 @pytest.mark.parametrize('url, parameters, headers', request_attributes)
 @patch('repository_statistics.httpclient._get_response')
 def test_get_response_data_200_ok(mock_get_response, url, parameters, headers):
+    response_return_value(mock_get_response)
+    response_data = get_response_data(url, parameters, headers)
+    validate(response_data.response_json, valid_schema)
+    assert response_data.response_json == result_json
+
+
+@pytest.mark.parametrize('url, parameters, headers', request_attributes)
+@patch('repository_statistics.httpclient._get_response')
+def test_get_response_data_request_exception(mock_get_response, url, parameters, headers):
     response_return_value(mock_get_response)
     response_data = get_response_data(url, parameters, headers)
     validate(response_data.response_json, valid_schema)
