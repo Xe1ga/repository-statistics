@@ -102,3 +102,4 @@ def test_get_response_data_200_ok(mock_response, url, parameters, headers):
     mock_response.return_value.headers = {}
     response_data = get_response_data(url, parameters, headers)
     validate(response_data.response_json, valid_schema)
+    assert response_data.response_json == response_text
