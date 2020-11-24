@@ -18,9 +18,6 @@ response_text = {"created_at": "date", "author": {"login": "name"}}
 request_attributes = [(request_url, request_parameters, request_headers)]
 
 
-request_attributes_with_result = [(request_url, request_parameters, request_headers, response_text)]
-
-
 request_attributes_with_method = [(request_url, "get", request_parameters, request_headers),
                                   (request_url, "head", request_parameters, request_headers)]
 
@@ -37,6 +34,13 @@ valid_schema = {"title": "response",
 }
 
 
+def response_return_value(mock_function):
+    mock_function.return_value.status_code = 200
+    mock_function.return_value.json.return_value = response_text
+    mock_function.return_value.links = {}
+    mock_function.return_value.headers = {}
+
+
 def get_structure_response_data(*args, **kwargs):
     response_json = [response_text]
     links = dict(next={"url": "good"})
@@ -49,15 +53,15 @@ def get_structure_response_data(*args, **kwargs):
     )
 
 
-@pytest.mark.parametrize('url, parameters, headers, result', request_attributes_with_result)
-def test_get_response_content_with_pagination(url, parameters, headers, result):
+@pytest.mark.parametrize('url, parameters, headers', request_attributes)
+def test_get_response_content_with_pagination(url, parameters, headers):
     with patch('repository_statistics.httpclient.get_response_data') as mock_get_response_data:
         with patch('repository_statistics.httpclient.get_next_pages') as mock_get_next_pages:
             mock_get_response_data.side_effect = get_structure_response_data
             mock_get_next_pages.return_value = ""
             params = (url, parameters, headers)
             data = get_response_content_with_pagination(params)
-            assert next(data) == result
+            assert next(data) == response_text
             with pytest.raises(StopIteration):
                 next(data)
 
@@ -95,11 +99,9 @@ def test_get_response_200_ok(mock_requests_get, mock_requests_head, url, method,
 
 
 @pytest.mark.parametrize('url, parameters, headers', request_attributes)
-@patch('repository_statistics.httpclient._get_response', return_value=Mock(status_code=200))
-def test_get_response_data_200_ok(mock_response, url, parameters, headers):
-    mock_response.return_value.json.return_value = response_text
-    mock_response.return_value.links = {}
-    mock_response.return_value.headers = {}
+@patch('repository_statistics.httpclient._get_response')
+def test_get_response_data_200_ok(mock_get_response, url, parameters, headers):
+    response_return_value(mock_get_response)
     response_data = get_response_data(url, parameters, headers)
     validate(response_data.response_json, valid_schema)
     assert response_data.response_json == response_text
