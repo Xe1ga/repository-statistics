@@ -12,7 +12,7 @@ from repository_statistics.exceptions import TimeoutConnectionError, ConnectErro
 request_url = "http://url"
 request_parameters = {'sha': 'master', 'since': '2020-10-01T00:00:00', 'until': '2020-10-31T23:59:59.999999', 'per_page': '100'}
 request_headers = {'Accept': 'application/vnd.github.v3+json', 'Authorization': 'Token'}
-response_text = {"created_at": "date", "author": {"login": "name"}}
+result_json = {"created_at": "date", "author": {"login": "name"}}
 
 
 request_attributes = [(request_url, request_parameters, request_headers)]
@@ -36,13 +36,13 @@ valid_schema = {"title": "response",
 
 def response_return_value(mock_function):
     mock_function.return_value.status_code = 200
-    mock_function.return_value.json.return_value = response_text
+    mock_function.return_value.json.return_value = result_json
     mock_function.return_value.links = {}
     mock_function.return_value.headers = {}
 
 
 def get_structure_response_data(*args, **kwargs):
-    response_json = [response_text]
+    response_json = [result_json]
     links = dict(next={"url": "good"})
     return ResponseData(
         response_json=response_json,
@@ -61,7 +61,7 @@ def test_get_response_content_with_pagination(url, parameters, headers):
             mock_get_next_pages.return_value = ""
             params = (url, parameters, headers)
             data = get_response_content_with_pagination(params)
-            assert next(data) == response_text
+            assert next(data) == result_json
             with pytest.raises(StopIteration):
                 next(data)
 
@@ -91,11 +91,12 @@ def test_get_response_http_err(mock_requests_get, mock_requests_head, url, metho
 
 
 @pytest.mark.parametrize('url, method, parameters, headers', request_attributes_with_method)
-@patch.object(requests, 'head', return_value=mock_status_200)
-@patch.object(requests, 'get', return_value=mock_status_200)
+@patch.object(requests, 'head')
+@patch.object(requests, 'get')
 def test_get_response_200_ok(mock_requests_get, mock_requests_head, url, method, parameters, headers):
+    response_return_value(mock_requests_get if method == "get" else mock_requests_head)
     response = _get_response(url, method, parameters, headers)
-    assert response.json == response_text
+    assert response.json() == result_json
 
 
 @pytest.mark.parametrize('url, parameters, headers', request_attributes)
@@ -104,4 +105,4 @@ def test_get_response_data_200_ok(mock_get_response, url, parameters, headers):
     response_return_value(mock_get_response)
     response_data = get_response_data(url, parameters, headers)
     validate(response_data.response_json, valid_schema)
-    assert response_data.response_json == response_text
+    assert response_data.response_json == result_json
