@@ -2,6 +2,7 @@ import pytest
 
 from jsonschema import validate
 from unittest.mock import patch, Mock
+from json.decoder import JSONDecodeError
 
 from repository_statistics.httpclient import (get_response_content_with_pagination,
                                               _get_response, requests, get_response_data)
@@ -37,6 +38,13 @@ valid_schema = {"title": "response",
 def response_return_value(mock_function):
     mock_function.return_value.status_code = 200
     mock_function.return_value.json.return_value = result_json
+    mock_function.return_value.links = {}
+    mock_function.return_value.headers = {}
+
+
+def response_return_value_with_json_exception(mock_function):
+    mock_function.return_value.status_code = 200
+    mock_function.return_value.json.side_effect = [ValueError, JSONDecodeError]
     mock_function.return_value.links = {}
     mock_function.return_value.headers = {}
 
@@ -111,7 +119,19 @@ def test_get_response_data_200_ok(mock_get_response, url, parameters, headers):
 @pytest.mark.parametrize('url, parameters, headers', request_attributes)
 @patch('repository_statistics.httpclient._get_response')
 def test_get_response_data_request_exception(mock_get_response, url, parameters, headers):
-    response_return_value(mock_get_response)
+    mock_get_response.side_effect = [TimeoutConnectionError(""), ConnectError(""), HTTPError("")]
+    with pytest.raises(TimeoutConnectionError):
+        get_response_data(url, parameters, headers)
+    with pytest.raises(ConnectError):
+        get_response_data(url, parameters, headers)
+    with pytest.raises(HTTPError):
+        get_response_data(url, parameters, headers)
+
+
+@pytest.mark.parametrize('url, parameters, headers', request_attributes)
+@patch('repository_statistics.httpclient._get_response')
+def test_get_response_data_json_exception(mock_get_response, url, parameters, headers):
+    response_return_value_with_json_exception(mock_get_response)
     response_data = get_response_data(url, parameters, headers)
-    validate(response_data.response_json, valid_schema)
-    assert response_data.response_json == result_json
+    assert response_data.response_json is None
+
