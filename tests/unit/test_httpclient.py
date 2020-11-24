@@ -78,22 +78,28 @@ def test_get_response_content_with_pagination(url, parameters, headers):
 @patch.object(requests, 'head', side_effect=[requests.exceptions.Timeout(), requests.exceptions.ConnectionError()])
 @patch.object(requests, 'get', side_effect=[requests.exceptions.Timeout(), requests.exceptions.ConnectionError()])
 def test_get_response_timeout_connect_exception(mock_requests_get, mock_requests_head, url, method, parameters, headers):
+    """Тест на фугкцию get_response, когда возникют исключения Timeout, ConnectionError"""
     with pytest.raises(TimeoutConnectionError):
         _get_response(url, method, parameters, headers)
     with pytest.raises(ConnectError):
         _get_response(url, method, parameters, headers)
 
 
+def raise_http_error():
+    raise requests.exceptions.HTTPError(response=Mock(status_code=404))
+
+
 @pytest.mark.parametrize('url, method, parameters, headers', request_attributes_with_method)
 @patch.object(requests, 'head', return_value=Mock(status_code=404))
 @patch.object(requests, 'get', return_value=Mock(status_code=404))
 def test_get_response_http_exception(mock_requests_get, mock_requests_head, url, method, parameters, headers):
-    # mock_requests_get.response.status_code = 404
-    # mock_requests_head.response.status_code = 404
-    mock_requests_get.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError
-    mock_requests_head.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError
-    mock_requests_get.return_value.raise_for_status.side_effect.response.status_code = 404
-    mock_requests_head.return_value.raise_for_status.side_effect.response.status_code = 404
+    """Тест на фугкцию get_response, когда возникют исключения HTTPError"""
+    if method == "get":
+        mock_requests = mock_requests_get
+    else:
+        mock_requests = mock_requests_head
+    mock_requests.return_value.status_code = 404
+    mock_requests.return_value.raise_for_status.side_effect = raise_http_error
     with pytest.raises(HTTPError):
         _get_response(url, method, parameters, headers)
 
@@ -102,6 +108,7 @@ def test_get_response_http_exception(mock_requests_get, mock_requests_head, url,
 @patch.object(requests, 'head')
 @patch.object(requests, 'get')
 def test_get_response_200_ok(mock_requests_get, mock_requests_head, url, method, parameters, headers):
+    """Тест на фугкцию _get_response, когда возвращается статус 200 ОК"""
     response_return_value(mock_requests_get if method == "get" else mock_requests_head)
     response = _get_response(url, method, parameters, headers)
     assert response.json() == result_json
@@ -110,27 +117,16 @@ def test_get_response_200_ok(mock_requests_get, mock_requests_head, url, method,
 @pytest.mark.parametrize('url, parameters, headers', request_attributes)
 @patch('repository_statistics.httpclient._get_response')
 def test_get_response_data_200_ok(mock_get_response, url, parameters, headers):
+    """Тест на фугкцию get_response, когда возвращается статус 200 ОК"""
     response_return_value(mock_get_response)
     response_data = get_response_data(url, parameters, headers)
-    validate(response_data.response_json, valid_schema)
     assert response_data.response_json == result_json
 
 
 @pytest.mark.parametrize('url, parameters, headers', request_attributes)
 @patch('repository_statistics.httpclient._get_response')
-def test_get_response_data_request_exception(mock_get_response, url, parameters, headers):
-    mock_get_response.side_effect = [TimeoutConnectionError(""), ConnectError(""), HTTPError("")]
-    with pytest.raises(TimeoutConnectionError):
-        get_response_data(url, parameters, headers)
-    with pytest.raises(ConnectError):
-        get_response_data(url, parameters, headers)
-    with pytest.raises(HTTPError):
-        get_response_data(url, parameters, headers)
-
-
-@pytest.mark.parametrize('url, parameters, headers', request_attributes)
-@patch('repository_statistics.httpclient._get_response')
 def test_get_response_data_json_exception(mock_get_response, url, parameters, headers):
+    """Тест на фугкцию get_response, когда возникают исключения при десериализации"""
     response_return_value_with_json_exception(mock_get_response)
     response_data = get_response_data(url, parameters, headers)
     assert response_data.response_json is None
