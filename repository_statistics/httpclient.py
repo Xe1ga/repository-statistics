@@ -6,8 +6,8 @@ from typing import Optional, Generator
 from datetime import datetime
 from json.decoder import JSONDecodeError
 
-from structure import ResponseData, HeadersData
-from exceptions import TimeoutConnectionError, ConnectError, HTTPError
+from repository_statistics.structure import ResponseData, HeadersData
+from repository_statistics.exceptions import TimeoutConnectionError, ConnectError, HTTPError
 
 
 def get_next_pages(links: dict) -> str:

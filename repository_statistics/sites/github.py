@@ -10,9 +10,9 @@ from collections import Counter
 from collections.abc import Iterator
 from functools import partial
 
-from structure import Params
-from utils import get_date_from_str_without_time, in_interval, get_last_parts_url, to_compare_with_current_date
-from httpclient import get_response_content_with_pagination
+from repository_statistics.structure import Params
+from repository_statistics.utils import get_date_from_str_without_time, in_interval, get_last_parts_url, to_compare_with_current_date
+from repository_statistics.httpclient import get_response_content_with_pagination
 
 ACCEPT = "application/vnd.github.v3+json"
 PER_PAGE = 100
@@ -143,7 +143,7 @@ def count_commits_by_author(params: Params) -> list:
     :param params:
     :return:
     """
-    return Counter(map(lambda c: c.get("author").get("login"), fetch_login(params))).most_common(NUM_RECORDS)
+    return Counter(map(lambda c: c.get("author").get("login"), fetch_authors(params))).most_common(NUM_RECORDS)
 
 
 def count_pulls(params: Params, is_open: bool, is_old: bool = False) -> int:
@@ -168,7 +168,7 @@ def count_issues(params: Params, is_open: bool, is_old: bool = False) -> int:
     return sum(map(lambda pr: 1, fetch_issues(params, is_open, is_old)))
 
 
-def fetch_login(params: Params) -> Iterator:
+def fetch_authors(params: Params) -> Iterator:
     """
     Получает список логинов авторов коммитов
     :param params:

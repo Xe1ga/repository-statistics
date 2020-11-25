@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from sites.github import endpoints, get_headers
-from exceptions import HTTPError, ValidationError
-from utils import get_date_from_str
-from structure import Params
-from httpclient import get_response_headers_data
+from repository_statistics.sites.github import endpoints, get_headers
+from repository_statistics.exceptions import HTTPError, ValidationError
+from repository_statistics.utils import get_date_from_str
+from repository_statistics.structure import Params
+from repository_statistics.httpclient import get_response_headers_data
 
 
 def is_url(url: str) -> bool:
@@ -14,7 +14,8 @@ def is_url(url: str) -> bool:
     :return:
     """
     try:
-        return get_response_headers_data(url).status_code == 200
+        response_data = get_response_headers_data(url)
+        return response_data.status_code == 200
     except HTTPError:
         return False
 
@@ -81,6 +82,10 @@ def get_validation_errors(**params) -> list:
 
     if params["end_date"] and not is_date(params["end_date"]):
         errors.append(f'Неккорректно задан параметр даты конца периода, {params["end_date"]}.')
+
+    if (params["begin_date"] and params["end_date"] and is_date(params["begin_date"]) and is_date(params["end_date"])
+            and get_date_from_str(params["begin_date"]) > get_date_from_str(params["end_date"])):
+        errors.append('Дата начала периода больше даты конца периода')
 
     if not is_branch(params["url"], params["branch"]):
         errors.append(f'Ветки репозитория с указанным именем {params["branch"]} не существует.')
